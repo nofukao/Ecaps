@@ -148,6 +148,59 @@ IsConsole() =>
     || WinActive("ahk_exe mintty.exe")             ; Git Bash / Cygwin / WSL
     || WinActive("ahk_exe ttermpro.exe")           ; Tera Term
 
+; VSCode の内蔵ターミナルにフォーカスがあるか
+;   VSCode はエディタもターミナルも同じ Code.exe のウィンドウなので、ウィンドウ
+;   属性では区別できない。UI Automation でフォーカス中の要素を問い合わせ、
+;   ターミナル (xterm.js) の入力欄 "xterm-helper-textarea" かどうかで判定する。
+;   VSCode の設定は変えずに済む (複数 PC で既定設定のまま使うため)。
+;   - 問い合わせは Code.exe が前面のときだけ。1 回 0〜16ms 程度。
+;   - Chromium は最初の問い合わせでアクセシビリティを有効化し、その回だけ
+;     ルート ("View") を返すので、少し待って取り直す。
+;   - VSCode が応答しないときに Ecaps が固まらないよう、UIA のタイムアウトを短くする。
+IsVSCodeTerminal() {
+    static uia := 0
+    if !WinActive("ahk_exe Code.exe")
+        return false
+    try {
+        if !uia {
+            ; CUIAutomation8 / IUIAutomation2 (タイムアウトを設定できる版)
+            uia := ComObject("{e22ad333-b25f-460c-83d0-0581107395c9}", "{34723aff-0c9d-49d0-9896-7ab52df8cd8a}")
+            ComCall(61, uia, "UInt", 200)    ; put_ConnectionTimeout (ms)
+            ComCall(63, uia, "UInt", 200)    ; put_TransactionTimeout (ms)
+        }
+        Loop 3 {
+            ComCall(8, uia, "Ptr*", &el := 0)            ; GetFocusedElement
+            ComCall(30, el, "Ptr*", &bstr := 0)          ; get_CurrentClassName
+            ObjRelease(el)
+            cls := bstr ? StrGet(bstr, "UTF-16") : ""
+            DllCall("OleAut32\SysFreeString", "Ptr", bstr)
+            if cls != "View"
+                return cls = "xterm-helper-textarea"
+            Sleep(30)
+        }
+    }
+    return false
+}
+
+; 端末の種類:  "" = GUI / "console" = 端末ウィンドウ / "vscode" = VSCode 内蔵ターミナル
+TermKind() => IsConsole() ? "console" : IsVSCodeTerminal() ? "vscode" : ""
+
+; readline 流の制御キー (consoleKey) を、端末の種類に応じた実際の送出キーへ変換する。
+;   VSCode は一部のキーをターミナルに渡さず自分のショートカットとして使う
+;   (例: Ctrl+K は chord の 1 打目)。そのため VSCode では、既定設定のまま
+;   シェルに同じ制御文字が届くキーへ置き換える。
+TermKey(kind, consoleKey) {
+    static vscode := Map(
+        "^k",       "{U+000B}",     ; kill-line: Ctrl+K は横取りされるので文字 ^K を直接送る
+        "!d",       "^{Del}",       ; kill-word: VSCode 既定で Ctrl+Del → ESC d
+        "^{Space}", "^+2",          ; set-mark: VSCode 既定で Ctrl+Shift+2 → NUL
+    )
+    return (kind = "vscode" && vscode.Has(consoleKey)) ? vscode[consoleKey] : consoleKey
+}
+
+; 端末なら consoleKey (を端末に合わせて変換したもの)、GUI なら guiKey
+TermOr(consoleKey, guiKey) => (kind := TermKind()) ? TermKey(kind, consoleKey) : guiKey
+
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; 実行セッション判定
@@ -191,7 +244,7 @@ ShouldYieldToRDP() => IsLocalConsole() && IsRDPActive()
 
 ; 端末では Shift+移動 は選択にならない (readline は mark で region を持つ) ので
 ; Mark 中でも Shift を付けず、素の移動キーを送る。
-SendMove(key) => Send(((Mark.Active && !IsConsole()) ? "+" : "") . key)
+SendMove(key) => Send(((Mark.Active && !TermKind()) ? "+" : "") . key)
 
 SendAndUnmark(keys) {
     Send(keys)
@@ -212,10 +265,10 @@ DeleteRange(rangeKey) {
 }
 
 ; 範囲削除 (kill-line / kill-word 等) を端末/GUI で送り分ける:
-;   端末 → readline の制御キーをそのまま送る (例 行末まで=Ctrl+K)
+;   端末 → readline の制御キーを送る (例 行末まで=Ctrl+K。VSCode は TermKey で変換)
 ;   GUI  → 従来どおり (Shift+移動)→Del の選択削除
 KillToEdge(consoleKey, guiRangeKey) =>
-    IsConsole() ? SendAndUnmark(consoleKey) : DeleteRange(guiRangeKey)
+    (kind := TermKind()) ? SendAndUnmark(TermKey(kind, consoleKey)) : DeleteRange(guiRangeKey)
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
@@ -284,7 +337,7 @@ F13 & e::SendMove("{End}")
 
 ;==================== Set Mark (選択モード) ====================
 ; 端末では readline の set-mark (Ctrl+Space) を送る。GUI では自前の選択トグル。
-F13 & Space::IsConsole() ? Send("^{Space}") : Mark.Toggle()
+F13 & Space::(kind := TermKind()) ? Send(TermKey(kind, "^{Space}")) : Mark.Toggle()
 
 
 ;==================== 削除 ====================
@@ -306,11 +359,11 @@ F13 & g::SendAndUnmark("{Esc}")               ; Emacs C-g (キャンセル)
 
 ;==================== カット・コピー・ペースト ====================
 F13 & x::SendAndUnmark("^x")        ; カット
-F13 & w::SendAndUnmark(IsConsole() ? "^w" : "^x")   ; カット / 端末:kill-region (Ctrl+W)
+F13 & w::SendAndUnmark(TermOr("^w", "^x"))   ; カット / 端末:kill-region (Ctrl+W)
 F13 & c::SendAndUnmark("^c")        ; コピー (端末では Ctrl+C=SIGINT で正しい)
-!w::SendAndUnmark(IsConsole() ? "!w" : "^c")   ; コピー (Emacs M-w) / 端末:Alt+w=kill-ring-save
+!w::SendAndUnmark(TermOr("!w", "^c"))   ; コピー (Emacs M-w) / 端末:Alt+w=kill-ring-save
 F13 & v::SendAndUnmark("^v")        ; ペースト
-F13 & y::SendAndUnmark(IsConsole() ? "^y" : "^v")   ; ペースト / 端末:yank (Ctrl+Y)
+F13 & y::SendAndUnmark(TermOr("^y", "^v"))   ; ペースト / 端末:yank (Ctrl+Y)
 
 
 ;==================== ファンクションキー (F13 + 数字) ====================

@@ -23,11 +23,10 @@
   - 入力は SendInput による注入なので、AHK からは「物理的に押されていない」キーに
     見える。修飾キー (Alt 等) を押したまま連打する挙動は実機と異なり得るので、
     それは手で確認すること。
-  - 他の AutoHotkey スクリプトが動いていると、AHK の SendInput が SendEvent に
-    自動で切り替わり結果が変わるので、既定では中止する。--stop-others を付けると
-    それらを終了させ、テスト後にスタートアップフォルダの .ahk を起動し直す。
-    ただし UIA 版 (AutoHotkey64_UIA.exe) で常駐している場合は権限上終了できない
-    ので、トレイアイコンから手動で Exit しておくこと。
+  - 常駐中の Ecaps など他の AutoHotkey が動いていても実行できる。テスト対象の
+    フックが最後に登録されるので先に呼ばれ、レコーダはその直後に置かれるため、
+    記録は他スクリプトの影響を受けない (Ecaps は SendMode("Event") 固定なので、
+    他スクリプトの存在で送出方式が変わることもない)。
 """
 
 import argparse
@@ -217,16 +216,31 @@ def force_foreground(hwnd):
 # ---------------------------------------------------------------------------
 # 入力ドライバ
 # ---------------------------------------------------------------------------
+# 入力を送ってよい前面ウィンドウ。設定されていれば、送る直前に毎回確かめ、
+# 違うウィンドウ (ユーザーのアプリ等) が前面なら送らずに中止する
+GUARD_HWND = None
+
+
+def check_foreground():
+    if GUARD_HWND is not None and user32.GetForegroundWindow() != GUARD_HWND:
+        raise RuntimeError("テスト用ウィンドウ以外が前面になったため中止しました (誤入力防止)")
+
+
+def send_input(vk, scan, flags):
+    check_foreground()
+    inp = INPUT(type=INPUT_KEYBOARD, u=_INPUTUNION(ki=KEYBDINPUT(vk, scan, flags, 0, DRIVER_TAG)))
+    if user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) != 1:
+        raise RuntimeError(f"SendInput に失敗しました (error {ctypes.get_last_error()})。"
+                           "画面ロック中や、RDP ウィンドウが最小化されていると送信できません。")
+
+
 def send_key(name, up=False):
     vk = NAME_VK[name]
     scan = user32.MapVirtualKeyW(vk, 0)
     if name == "F13":
         scan = 0x64
     flags = (KEYEVENTF_KEYUP if up else 0) | (KEYEVENTF_EXTENDEDKEY if vk in EXTENDED_VKS else 0)
-    inp = INPUT(type=INPUT_KEYBOARD, u=_INPUTUNION(ki=KEYBDINPUT(vk, scan, flags, 0, DRIVER_TAG)))
-    if user32.SendInput(1, ctypes.byref(inp), ctypes.sizeof(INPUT)) != 1:
-        raise RuntimeError(f"SendInput に失敗しました (error {ctypes.get_last_error()})。"
-                           "画面ロック中や、RDP ウィンドウが最小化されていると送信できません。")
+    send_input(vk, scan, flags)
 
 
 def play(steps, delay=KEY_DELAY):
@@ -343,12 +357,10 @@ def stop_ahk(pid, timeout=5):
     return pid not in ahk_pids()
 
 
-def startup_ahk_entries():
-    startup = Path(os.environ["APPDATA"]) / r"Microsoft\Windows\Start Menu\Programs\Startup"
-    return [p for p in startup.iterdir() if p.suffix.lower() in (".lnk", ".ahk")]
-
-
 def release_all():
+    # キーを離すだけなので、前面がどこでもガードせずに送る (押しっぱなし防止)
+    global GUARD_HWND
+    GUARD_HWND = None
     for name in ["F13", "LAlt", "LShift", "LCtrl"]:
         try:
             send_key(name, up=True)
@@ -364,24 +376,11 @@ def main():
     ap.add_argument("-k", default="", help="名前にこの文字列を含むケースだけ実行")
     ap.add_argument("--script", type=Path, default=SCRIPT, help="テスト対象の .ahk (既定 Ecaps.ahk)")
     ap.add_argument("--golden-dir", type=Path, default=GOLDEN_DIR, help="golden の置き場 (既定 tests/golden)")
-    ap.add_argument("--stop-others", action="store_true",
-                    help="他の AutoHotkey を終了し、テスト後にスタートアップから再起動する")
-    ap.add_argument("--allow-others", action="store_true",
-                    help="他の AutoHotkey が動いていてもそのまま実行する (結果が実運用と異なり得る)")
     args = ap.parse_args()
     golden_dir = args.golden_dir
 
-    others = ahk_pids()
-    restart = []
-    if others and args.allow_others:
-        print(f"警告: 他の AutoHotkey が動作中 (PID {others})。SendInput が SendEvent に切り替わった状態でテストします。")
-    elif others:
-        if not args.stop_others:
-            sys.exit(f"他の AutoHotkey が動作中です (PID {others})。終了させるか --stop-others を付けて再実行してください。")
-        restart = startup_ahk_entries()
-        for pid in others:
-            if not stop_ahk(pid):
-                sys.exit(f"AutoHotkey (PID {pid}) を終了できませんでした。手動で終了してから再実行してください。")
+    if ahk_pids():
+        print(f"注: 他の AutoHotkey が動作中 (PID {ahk_pids()})。記録には影響しないのでそのまま実行します。")
 
     cases = [c for c in CASES if args.k in c[0]]
     print("3 秒後に開始します。終わるまでキーボード・マウスに触れないでください。")
@@ -405,6 +404,8 @@ def main():
         for name, window, steps, summ in cases:
             rec.focus(window)
             time.sleep(0.1)
+            global GUARD_HWND
+            GUARD_HWND = rec.windows[window]
             rec.events = []
             rec.recording = True
             play(steps)
@@ -431,9 +432,6 @@ def main():
         release_all()
         stop_ahk(ahk.pid) or ahk.kill()
         rec.stop()
-        for entry in restart:
-            os.startfile(entry)
-            print(f"再起動: {entry.name}")
 
     checked = len(cases) - len(written)
     print(f"\n{checked - len(failed)}/{checked} passed" + (f", {len(written)} golden written" if written else ""))

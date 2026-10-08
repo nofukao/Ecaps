@@ -299,4 +299,10 @@ python tests/golden_test.py            # golden (tests/golden/*.txt) と比較
 python tests/golden_test.py --update   # 意図した変化なら golden を更新
 ```
 
-実行中の約 1 分間は、キーボードとマウスに触れないでください。常駐中の Ecaps など、他の AutoHotkey スクリプトは事前に終了しておく必要があります。仕組みと制約は [設計ノート 7 章](docs/design-notes.md) を参照してください。
+端末向けの挙動を変えた場合は、VSCode 内蔵ターミナル (Git Bash) で bash が実際にどう編集したかを確かめる e2e テストも実行します。テスト用の VSCode を別インスタンスで起動するので、普段の VSCode の設定には影響しません。
+
+```
+python tests/vscode_terminal_test.py
+```
+
+どちらのテストも実行中の約 1 分間は、キーボードとマウスに触れないでください。仕組みと制約は [設計ノート 7 章](docs/design-notes.md) を参照してください。

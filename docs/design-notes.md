@@ -197,6 +197,27 @@ readline は Emacs キーをエミュレートしているので、**端末で�
 - **`F13+x` / `F13+v` はスコープ外（現状維持）**: 端末で `F13+v`=`Ctrl+V` は quoted-insert になり不適切だが、今回は触らない。将来、端末ペースト（WT=`Ctrl+Shift+V` / PuTTY=`Shift+Insert`）へ振る余地あり。
 - **`F13+d`(Del) / `F13+h`(BS) はそのままで端末でも正しい**ので分岐不要。
 
+### VSCode 内蔵ターミナル
+
+VSCode はエディタもターミナルも同じ `Code.exe` のウィンドウなので、`IsConsole()`（ウィンドウ単位の判定）では区別できない。以前は VSCode を常に GUI 扱いしていたため、ターミナル（Git Bash）で `F13+k` が `Shift+End`→Del になり、xterm.js が送る `ESC[1;2F` を readline が解釈できず **`F` が入力**されていた（`F13+u` は `H`）。
+
+**方針**: 複数 PC で使うので、VSCode の設定（`window.title` や keybindings.json）は変えず、Ecaps 側だけで解決する。
+
+- **判定 `IsVSCodeTerminal()`**: `Code.exe` が前面のときだけ UI Automation でフォーカス中の要素を問い合わせ、クラス名が `xterm-helper-textarea`（xterm.js の入力欄）なら内蔵ターミナル。エディタは別のクラス（`RootWebArea` 等）、Claude Code の入力欄は `messageInput_*`。1 回 0〜16 ms 程度で、実機で VSCode 側の副作用（スクリーンリーダー検出の通知等）が出ないことを確認済み。
+  - Chromium は最初の問い合わせでアクセシビリティを有効化し、その 1 回だけルート要素（クラス `View`）を返す。そのときは 30 ms 待って取り直す。
+  - VSCode が応答しないとホットキー処理（メインスレッド）ごと止まるので、`IUIAutomation2` で接続・トランザクションのタイムアウトを 200 ms に縮めている（既定は 2 秒 / 20 秒）。タイムアウト時は GUI 扱いになる。
+- **送出キー `TermKey()`**: 判定が「端末」になっても、VSCode は一部のキーをシェルに渡さず自分で使う。`Ctrl+K` は chord（`Ctrl+K Ctrl+C` 等）の 1 打目として横取りされる（`terminal.integrated.allowChords` 既定 true）。そこで VSCode では、**既定設定のまま同じ制御文字がシェルに届くキー**に置き換える:
+
+| readline | 端末ウィンドウ | VSCode 内蔵ターミナル | 理由 |
+|---|---|---|---|
+| kill-line | `Ctrl+K` | 文字 `U+000B` を直接送る | Ctrl+K は chord として横取りされる |
+| kill-word | `Alt+d` | `Ctrl+Del` | VSCode 既定で `ESC d` をシェルへ送る |
+| set-mark | `Ctrl+Space` | `Ctrl+Shift+2` | VSCode 既定で NUL をシェルへ送る（Ctrl+Space は補完に取られ得る） |
+| その他 (`Ctrl+U/W/Y`, `Alt+w`) | 同じ | 同じ | そのまま届く |
+
+  VSCode が既定でシェルへ送るキーは `workbench.desktop.main.js` の `workbench.action.terminal.sendSequence` 登録（`Ctrl+Backspace`→`^W`、`Ctrl+Del`→`ESC d`、`Ctrl+Shift+2`→NUL 等）で確かめられる。
+- 実際に bash まで届くかは `tests/vscode_terminal_test.py`（7 章）で確認する。
+
 
 ## 4. RDP セッション周りの注意
 
@@ -257,10 +278,26 @@ python tests/golden_test.py -k alt     # 名前に alt を含むケースだけ
 2. `Ecaps.ahk` を変更
 3. 再実行し、差分が**意図した変化だけ**であることを確認（新しいキーを足したら `CASES` にケースも足す）
 4. 意図どおりなら `--update` で golden を更新し、スクリプトと一緒にコミット
+5. 端末向けの送出（`TermKind` / `TermKey` / `KillToEdge` 等）に関わる変更なら、`python tests/vscode_terminal_test.py` も全合格することを確認（下記）
 
 ### 制約
 
 - 実行中（1 分弱）はキーボード・マウスに触れない。RDP 越しなら RDP ウィンドウを最小化しない（SendInput がアクセス拒否で失敗する）。
-- **他の AutoHotkey スクリプトが動いていると中止する**。他スクリプトのフックがあると AHK の SendInput が SendEvent に自動で切り替わり、実運用と条件が変わるため。常駐の Ecaps が UIA 版（`AutoHotkey64_UIA.exe`）だとテストから終了できないので、トレイアイコンから Exit しておく。テスト対象は非 UIA の `AutoHotkey64.exe` で起動する（UIA 版は CreateProcess で起動できない）。
+- 入力は送る直前に毎回、前面がテスト用ウィンドウか確かめ、違えば中止する（ユーザーのアプリへの誤入力防止）。
+- 常駐中の Ecaps など他の AutoHotkey が動いていても実行できる。テスト対象のフックが最後に登録されて最初に呼ばれ、レコーダはその直後なので記録は影響を受けない。Ecaps は `SendMode("Event")` 固定なので、他スクリプトの存在で送出方式が変わることもない。テスト対象は非 UIA の `AutoHotkey64.exe` で起動する（UIA 版は CreateProcess で起動できない）。
 - 入力は SendInput による注入なので、AHK からは「物理的には押されていない」キーに見える。そのため **Alt 等の修飾キーを押したまま連打する挙動は実機と異なる**（Send 後に Alt が押し直されない）。この種の変更は実機でも手で確認する。
 - IME 切替（`F13+j/i`）、サスペンド、マウス、RDP 前面時の無効化はテスト対象外。
+
+### VSCode 内蔵ターミナルの e2e テスト
+
+`golden_test.py` は「Ecaps が何を送ったか」しか見ないが、VSCode のターミナルではキーが bash に届くかが VSCode 次第なので、`tests/vscode_terminal_test.py` で **bash が実際にどう編集したか**を確かめる。
+
+```
+python tests/vscode_terminal_test.py          # 全ケース合格で exit 0
+python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じない (調査用)
+```
+
+- 使い捨ての `--user-data-dir` / `--extensions-dir` で VSCode を別インスタンス起動する。**ユーザーの VSCode 設定には触れない**（既定設定のまま、既定プロファイルを Git Bash にし、初回のサインイン案内等を切るだけ）。
+- ターミナルで「行を打つ → Ecaps のキー → `>> "$O"` で echo の結果をファイルへ追記」を繰り返し、期待値と比べる。
+- 文字やキーを送る前に、`tests/uia_focus.ahk` でフォーカスがテスト用 VSCode のターミナル入力欄（`xterm-helper-textarea`）にあることを確かめ、無ければ中止する。初回起動時のダイアログ等に Enter が誤爆するのを防ぐため。
+- VSCode の中（Claude Code 等）から起動すると `ELECTRON_RUN_AS_NODE=1` が継承され、Code.exe が Node として動いてしまうので、`VSCODE_*` / `ELECTRON_*` を除いた環境で起動している。
