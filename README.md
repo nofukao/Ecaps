@@ -1,6 +1,6 @@
 # Ecaps
 
-Windows 上で Emacs / Unix シェル風のキーバインドを実現する AutoHotkey v2 スクリプト。
+nWindows 上で Emacs / Unix シェル風のキーバインドを実現する AutoHotkey v2 スクリプト。
 
 物理 **CapsLock** キーを **F13** に割り当てた上で、`F13 + key` の組合せに Emacs 風の操作を割り当てます。Windows 既定の Ctrl ショートカット（`Ctrl+S` / `Ctrl+C` 等）はそのまま使えるため、Windows と Emacs の操作体系を両立できます。
 
@@ -25,7 +25,6 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
   - [日本語入力 (IME) 制御](#日本語入力-ime-制御)
 - [技術的補足](#技術的補足)
 - [特定アプリでの無効化](#特定アプリでの無効化)
-- [テスト](#テスト)
 
 ---
 
@@ -278,31 +277,13 @@ AutoHotkey v2 のデフォルトではサスペンド時のトレイアイコン
 
 ## 特定アプリでの無効化
 
-PuTTY、Vim、GVim、Emacs 本体、リモートデスクトップなど **本キーバインドを適用したくないアプリ** がある場合は、スクリプト内の該当ブロックを `#HotIf` で囲ってください。
+PuTTY、Vim、GVim、Emacs 本体など **本キーバインドを適用したくないアプリ** がある場合は、スクリプト内の `GroupAdd("NoEcaps", ...)` の隣に、そのウィンドウを `NoEcaps` グループへ追加してください。
 
 ```ahk
-#HotIf !(WinActive("ahk_class PuTTY") || WinActive("ahk_class Vim"))
-; ... ここに無効化したいキーバインドを置く ...
-#HotIf
+GroupAdd("NoEcaps", "ahk_class PuTTY")
+GroupAdd("NoEcaps", "ahk_class Vim")
 ```
 
-現状のスクリプトはコメントとしてこのパターンを案内しているのみで、デフォルトでは全アプリで有効になっています。
+ローカル PC で動作中のリモートデスクトップ (mstsc) は自動でこのグループに入ります。それ以外はデフォルトで全アプリ有効です。
 
----
-
-## テスト
-
-`Ecaps.ahk` を変更したら、ゴールデンテストで送出キー列に意図しない変化がないことを確認します（Python 3 が必要。依存ライブラリなし）。
-
-```
-python tests/golden_test.py            # golden (tests/golden/*.txt) と比較
-python tests/golden_test.py --update   # 意図した変化なら golden を更新
-```
-
-端末向けの挙動を変えた場合は、VSCode 内蔵ターミナル (Git Bash) で bash が実際にどう編集したかを確かめる e2e テストも実行します。テスト用の VSCode を別インスタンスで起動するので、普段の VSCode の設定には影響しません。
-
-```
-python tests/vscode_terminal_test.py
-```
-
-どちらのテストも実行中の約 1 分間は、キーボードとマウスに触れないでください。仕組みと制約は [設計ノート 7 章](docs/design-notes.md) を参照してください。
+> `#HotIf` に `||` や自作関数を含む式を書くのは避けてください。キーを押し続けたときにホットキーが外れて素の文字が入力される原因になります（[設計ノート 1.5](docs/design-notes.md)）。

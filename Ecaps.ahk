@@ -8,12 +8,13 @@
 ;   本物の Ctrl は極力使わないので、Windows 既定のショートカット
 ;   (Ctrl+S 等) は従来通り動作する。
 ;
-;   設定方法:
-;     1. ChangeKey 等で物理 CapsLock キーに F13 (scancode 0x0064) を割当て
-;     2. 本スクリプトを適当なフォルダに配置 (例: OneDrive\bin\AutoHotkey)
-;     3. Win+R → shell:startup でスタートアップに登録
+;   インストール / 更新:
+;     README.md の「インストール」を参照 (install.ps1 で自動設置)。
+;       - 設置先   : %LOCALAPPDATA%\Programs\Ecaps
+;       - 自動起動 : スタートアップの Ecaps.lnk (AutoHotkey64_UIA.exe で起動)
+;       - CapsLock : レジストリ Scancode Map で F13 (scancode 0x0064) に割当て
 ;
-;   設定方法2 (任意):
+;   (任意) PowerShell を Emacs 編集モードにする (install.ps1 -PowerShellEmacs でも可):
 ;     PowerShell(PS)をEmacs編集モードにし、bashと同じ挙動にする。
 ;     1. PSターミナルを開く。(管理者権限は不要)
 ;     2. PSプロンプトで以下の3行について、行頭"> "の次からを切り取って、順に貼り付けて実行する。
