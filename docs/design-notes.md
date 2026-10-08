@@ -299,7 +299,7 @@ python tests/golden_test.py -k alt     # 名前に alt を含むケースだけ
 - 常駐中の Ecaps など他の AutoHotkey が動いていても実行できる。テスト対象のフックが最後に登録されて最初に呼ばれ、レコーダはその直後なので記録は影響を受けない。Ecaps は `SendMode("Event")` 固定なので、他スクリプトの存在で送出方式が変わることもない。テスト対象は非 UIA の `AutoHotkey64.exe` で起動する（UIA 版は CreateProcess で起動できない）。
 - 入力は SendInput による注入なので、AHK からは「物理的には押されていない」キーに見える。そのため **Alt 等の修飾キーが絡む挙動は実機と異なる**（Send 後に Alt が押し直されないので、Alt を押したままの連打や、Alt を離したときのメニュー反応・`MaskAlt()` のマスクは再現できない）。golden の Alt 系ケースに差分が出たら「無害」と決めつけず、実機（メモ帳の Alt+f → Alt を離す等）で確認する。
 - IME 切替（`F13+j/i`）、サスペンド、マウス、RDP 前面時の無効化はテスト対象外。
-- テスト対象の AutoHotkey は環境変数 `ECAPS_AHK_EXE` で切り替えられる（既定は `C:\Program Files\AutoHotkey2\AutoHotkey64.exe`）。新しい AutoHotkey への適合は、インストール済みの版を変えずに、公式のポータブル版 zip（GitHub Releases の `AutoHotkey_<版>.zip`）を展開してその `AutoHotkey64.exe` を指定して確かめる。2.0.29 で全テスト合格を確認済み（2026-10-08）。
+- テスト対象の AutoHotkey は環境変数 `ECAPS_AHK_EXE` で切り替えられる（既定は `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`）。新しい AutoHotkey への適合は、インストール済みの版を変えずに、公式のポータブル版 zip（GitHub Releases の `AutoHotkey_<版>.zip`）を展開してその `AutoHotkey64.exe` を指定して確かめる。2.0.29 で全テスト合格を確認済み（2026-10-08）。
 
 ### VSCode 内蔵ターミナルの e2e テスト
 
