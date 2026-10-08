@@ -314,3 +314,18 @@ python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じな
 - ターミナルで「行を打つ → Ecaps のキー → `>> "$O"` で echo の結果をファイルへ追記」を繰り返し、期待値と比べる。
 - 文字やキーを送る前に、`tests/uia_focus.ahk` でフォーカスがテスト用 VSCode のターミナル入力欄（`xterm-helper-textarea`）にあることを確かめ、無ければ中止する。初回起動時のダイアログ等に Enter が誤爆するのを防ぐため。
 - VSCode の中（Claude Code 等）から起動すると `ELECTRON_RUN_AS_NODE=1` が継承され、Code.exe が Node として動いてしまうので、`VSCODE_*` / `ELECTRON_*` を除いた環境で起動している。
+
+---
+
+## 8. インストーラ（install.ps1）
+
+利用者向けの手順は README の「インストール」。ここでは保守時に知っておくべき判断だけを書く。
+
+- **ASCII のみで書く**: Windows PowerShell 5.1 は BOM 無しの .ps1 を ANSI（cp932）で読むため、日本語を含めると壊れることがある。出力メッセージも英語。
+- **コードや URL を PowerShell のコマンドラインに載せない**: `powershell -ExecutionPolicy Bypass -c "& ([scriptblock]::Create((irm <URL>)))"` は、Microsoft Defender に **Trojan:Win32/Commando.A!ml** として検知され、プロセスの起動を止められた（2026-10-08、v1.0.0 の README に載せた 1 行）。ファイルの中身ではなく、コマンドラインの形で判定される。`-EncodedCommand` も同類なので避ける。
+  - 配布手順は「`curl.exe` で一時フォルダへダウンロード → `powershell -File` で実行」の 2 段階にする。
+  - 管理者権限の処理（winget と Scancode Map の書き込み）も、一時 .ps1 に書き出して `Start-Process powershell -Verb RunAs ... -File` で実行する。
+- **UIA 版インスタンスの終了**: 通常権限のプロセスからは UIA 版 AutoHotkey のウィンドウにメッセージを送れない（UIPI）ため、UIA 版 AutoHotkey で小さな終了用スクリプトを起動し、そこから `WM_COMMAND 65307`（トレイの Exit）を送る。UIA 版は CreateProcess では起動できないので `Start-Process`（ShellExecute）で起動する。
+- **Scancode Map の判定**: 標準値と完全一致なら OK。未設定なら書き込む。別の値が入っていれば、ユーザーの他の割り当てを壊さないよう `-Force` が無い限り上書きしない。値を消しても書き込んでも、反映は再起動後（それまでは起動時の割り当てが有効なまま）。
+- **テスト**: リリースが無くても `-Source <フォルダ>` で手元のファイルから設置して確かめられる。何度実行しても同じ状態になること（2 回目はすべて `[OK]`）も確認する。
+

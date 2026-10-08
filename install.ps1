@@ -16,11 +16,16 @@
       5. Optionally (-PowerShellEmacs) set PSReadLine to Emacs edit mode.
 
     This file is kept ASCII-only on purpose: Windows PowerShell 5.1 reads BOM-less
-    files as the ANSI code page, and the script is also run via "irm | iex".
+    files as the ANSI code page.
     See README.md ("Install") for the human/AI-agent instructions.
 
+    Download it to a file and run it with -File. Do NOT pass the download URL on a
+    PowerShell command line ("powershell -c ... irm <url>") or pipe it to iex:
+    Microsoft Defender blocks such command lines as Trojan:Win32/Commando.
+
 .EXAMPLE
-    powershell -ExecutionPolicy Bypass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1)))"
+    curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+    powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1"
 #>
 [CmdletBinding()]
 param(
@@ -106,13 +111,19 @@ function Invoke-AdminTasks {
     if ($needAhk) { $what += 'install AutoHotkey v2 (winget)' }
     if ($needSc)  { $what += 'set CapsLock->F13 / ScrollLock->CapsLock (registry)' }
     Write-Host ('Requesting administrator rights to: ' + ($what -join ', ') + '. Please answer the UAC prompt.') -ForegroundColor Yellow
-    $encoded = [Convert]::ToBase64String([Text.Encoding]::Unicode.GetBytes($lines -join "`n"))
+    # Run the admin commands from a temporary .ps1 file (-File). Microsoft Defender flags
+    # PowerShell command lines that carry code inline (-EncodedCommand / -Command with a
+    # download) as Trojan:Win32/Commando, so never put code on the command line.
+    $adminScript = Join-Path ([IO.Path]::GetTempPath()) 'ecaps-install-admin.ps1'
+    Set-Content -Path $adminScript -Value $lines -Encoding UTF8   # UTF-8 with BOM: safe for non-ASCII user paths
     try {
         $p = Start-Process powershell.exe -Verb RunAs -Wait -PassThru `
-                -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-EncodedCommand', $encoded
+                -ArgumentList '-NoProfile', '-ExecutionPolicy', 'Bypass', '-File', ('"' + $adminScript + '"')
     } catch {
         Say 'TODO' 'The UAC prompt was declined; administrator tasks were skipped. Run this script again to retry (or use -NoAdmin to see the commands).'
         return
+    } finally {
+        Remove-Item $adminScript -ErrorAction SilentlyContinue
     }
     if ($needAhk) {
         if (Find-AhkDir) { Say 'CHANGED' 'Installed AutoHotkey v2.' }

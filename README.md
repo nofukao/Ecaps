@@ -45,7 +45,7 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 - ローカル PC と リモートデスクトップ (RDP) 先の両方で動かしても、キーが二重に処理されない
 - 一部の `F13 + キー` は `Ctrl + キー` として動作（CapsLock を Ctrl 代わりに使える）
 - マウス操作も `F13 + クリック / ホイール` → `Ctrl + …` にマップ（拡大縮小等）
-- **1 行でインストール・更新**（AI エージェントに頼むこともできる）
+- **2 行のコマンドでインストール・更新**（AI エージェントに頼むこともできる）
 
 ---
 
@@ -56,7 +56,7 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 | 方法 | あなたがすること |
 |---|---|
 | **(A) AI に依頼する** | AI エージェント（Claude Code など）に「https://github.com/nofukao/Ecaps を設定して」と頼む |
-| **(B) 自分で行う** | PowerShell で 1 行のコマンドを実行する |
+| **(B) 自分で行う** | PowerShell で 2 行のコマンドを実行する |
 
 どちらの場合も、AutoHotkey の導入や CapsLock の割り当てが必要なときは **UAC（管理者権限の確認）が 1 回出る**ので「はい」を押してください。CapsLock の割り当てを新しく設定した場合は、**Windows の再起動後**に有効になります。
 
@@ -78,29 +78,39 @@ https://github.com/nofukao/Ecaps を設定して
    - AutoHotkey v2 の導入（winget）と、CapsLock のキー割り当て（レジストリ `HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout` の `Scancode Map`）を、必要な場合に自動で行うこと。
    - その場合は **UAC の確認が 1 回出るので、ユーザーが「はい」を押す必要がある**こと。
    - キー割り当てを新しく設定した場合は、Windows の再起動が必要なこと。
-2. **実行する**: 下の「(B) 自分で行う場合」の 1 行を、**そのまま** PowerShell（または `powershell` を呼べるシェル）で実行する。UAC の応答を待つ間ブロックするので、タイムアウトは長め（数分）にする。
+2. **実行する**: `install.ps1` をファイルとしてダウンロードしてから、`powershell -File` で実行する。2 つは**別々のコマンドとして**実行する（使うシェルに合わせて書き換えてよいが、この形は崩さない）。UAC の応答を待つ間ブロックするので、タイムアウトは長め（数分）にする。
+
+   ```
+   curl.exe -fsSL -o "%TEMP%\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\ecaps-install.ps1"
+   ```
+
+   - **ダウンロード URL を PowerShell のコマンドラインに直接書かない**（`powershell -c "... irm <URL> ..."` や `irm <URL> | iex` の形）。Microsoft Defender がマルウェア（Trojan:Win32/Commando）として遮断する。
    - オプションは、ユーザーが明示した場合だけ付ける。特に `-Force`（既存のキー割り当ての上書き）と `-PowerShellEmacs`（PowerShell プロファイルの変更）は、ユーザーの指示なしに付けない。
    - `install.ps1` が行わない変更（レジストリの手動編集、他のソフトの導入・削除など）は行わない。
 3. **出力を確認する**: 各行の `[OK]` / `[CHANGED]` / `[TODO]` / `[ERROR]` と、最後の `Done.` または `Action needed:` を読む。
 4. **完了条件**: `Installed version:` に版（例 `v1.0.0`）が表示され、`[ERROR]` が無いこと。`Action needed:` があれば、その内容（再起動が必要、既存のキー割り当てが標準と違う、UAC が拒否された、など）をユーザーにそのまま伝える。`[ERROR]` があれば、その行を示して対応をユーザーと相談する。
-5. **更新を頼まれた場合**も、同じ 1 行を実行する（新しいリリースがある場合だけ入れ替わる）。
+5. **更新を頼まれた場合**も、同じ 2 つのコマンドを実行する（新しいリリースがある場合だけ入れ替わる）。
 
 ### (B) 自分で行う場合
 
 1. PowerShell を開く（`Win + X` →「ターミナル」。管理者として開く必要はありません）。
-2. 次の 1 行を貼り付けて実行する。
+2. 次の 2 行を貼り付けて実行する（1 行目で `install.ps1` を一時フォルダにダウンロードし、2 行目でそれを実行します）。
 
    ```powershell
-   powershell -ExecutionPolicy Bypass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1)))"
+   curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1"
    ```
 
 3. UAC の確認が出たら「はい」を押す（AutoHotkey の導入や CapsLock の割り当てが必要な場合だけ出ます）。
 4. 出力を確認する。各行は `[OK]`（済み）/ `[CHANGED]`（変更した）/ `[TODO]`（要対応）/ `[ERROR]`（失敗）で、最後に `Done.`（完了）または `Action needed:`（要対応の一覧）が表示されます。
 5. 「Restart Windows …」と表示されたら Windows を再起動する。
 
-**更新**するときも、同じ 1 行を実行します。何度実行しても同じ状態になり、新しいリリースがあるときだけ入れ替わります。
+**更新**するときも、同じ 2 行を実行します。何度実行しても同じ状態になり、新しいリリースがあるときだけ入れ替わります。
 
-オプションは 1 行の末尾（`)))` の後ろ）に付けます。例: `... install.ps1))) -PowerShellEmacs"`
+> `powershell -c "... irm <URL> ..."` のように、ダウンロードと実行を 1 行にまとめた形は使わないでください。Microsoft Defender がマルウェアの手口（Trojan:Win32/Commando）と判定して止めます。
+
+オプションは 2 行目の末尾に付けます。例: `powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1" -PowerShellEmacs`
 
 | オプション | 内容 |
 |---|---|
