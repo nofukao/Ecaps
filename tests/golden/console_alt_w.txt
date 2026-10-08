@@ -1,4 +1,6 @@
 drv down LAlt
+ahk down vkE8
+ahk up vkE8
 ahk down W
 ahk up W
 ahk up LAlt

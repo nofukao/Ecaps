@@ -257,12 +257,15 @@ SendAndUnmark(keys) {
 SendAndUnmarkShifted(plain, shifted) =>
     GetKeyState("Shift", "P") ? SendAndUnmark(shifted) : SendAndUnmark(plain)
 
-; Alt 系ホットキーの後始末: Alt を離したときにメニュー (Win11 メモ帳のアクセス
-; キー表示等) が出ないよう、Alt がまだ押されていれば無割当のキー vkE8 を挟む。
-;   Send は送出前に Alt を離し、送出後に (物理的に押されたままなので) 押し直す。
-;   この押し直した Alt をそのまま離すと「Alt 単独の押下」と見なされメニューが出る。
-;   SendInput 時代は AHK が自動でマスク (Ctrl 打鍵) を入れていたが、SendEvent
-;   (1.5 参照) では入らないため明示する。A_MenuMaskKey と同じ考え方。
+; Alt 系ホットキーで、Alt を離したときにメニュー (Win11 メモ帳のアクセスキー
+; 表示等) が出ないよう、Alt が押されていれば無割当キー vkE8 を挟む。
+; Alt 系ホットキーの「前後」で呼ぶ (例: !f::MaskAlt(), SendMove(...), MaskAlt())。
+;   前: Send は送出の最初に Alt を離す。その時点までに Alt 以外のキーが 1 つも
+;       無いと「Alt 単独の押下」と見なされる。AHK は Ctrl↓ を先に送るが、WinUI は
+;       修飾キーを「他のキー」と数えないので、Ctrl では抑止できない。
+;   後: Send は送出後に Alt を押し直す (物理的に押されたままなので)。この Alt を
+;       そのまま離したときに備える。
+;   いずれも Win11 メモ帳にキー列を再現して確認済み (docs/design-notes.md 1.5)。
 MaskAlt() {
     if GetKeyState("Alt")
         Send("{Blind}{vkE8}")
@@ -338,12 +341,12 @@ F13 & a::SendMove("{Home}")
 F13 & e::SendMove("{End}")
 
 ; Alt + fbnp / <> : 単語単位・半画面・文書先頭末尾
-!f::SendMove("^{Right}"), MaskAlt()
-!b::SendMove("^{Left}"), MaskAlt()
-!n::SendMove("^{PgDn}"), MaskAlt()
-!p::SendMove("^{PgUp}"), MaskAlt()
-!<::SendMove("^{Home}"), MaskAlt()
-!>::SendMove("^{End}"), MaskAlt()
+!f::MaskAlt(), SendMove("^{Right}"), MaskAlt()
+!b::MaskAlt(), SendMove("^{Left}"), MaskAlt()
+!n::MaskAlt(), SendMove("^{PgDn}"), MaskAlt()
+!p::MaskAlt(), SendMove("^{PgUp}"), MaskAlt()
+!<::MaskAlt(), SendMove("^{Home}"), MaskAlt()
+!>::MaskAlt(), SendMove("^{End}"), MaskAlt()
 
 
 ;==================== Set Mark (選択モード) ====================
@@ -356,8 +359,8 @@ F13 & d::SendAndUnmark("{Del}")     ; 右一文字
 F13 & h::SendAndUnmark("{BS}")      ; 左一文字
 F13 & k::KillToEdge("^k", "{End}")      ; 行末まで (kill-line)  端末:Ctrl+K
 F13 & u::KillToEdge("^u", "{Home}")     ; 行頭まで              端末:Ctrl+U
-!d::KillToEdge("!d", "^{Right}"), MaskAlt()    ; 単語末まで (kill-word) 端末:Alt+d
-!h::KillToEdge("^w", "^{Left}"), MaskAlt()     ; 単語頭まで (backward-kill-word) 端末:Ctrl+W
+!d::MaskAlt(), KillToEdge("!d", "^{Right}"), MaskAlt()    ; 単語末まで (kill-word) 端末:Alt+d
+!h::MaskAlt(), KillToEdge("^w", "^{Left}"), MaskAlt()     ; 単語頭まで (backward-kill-word) 端末:Ctrl+W
 
 
 ;==================== 改行・タブ・エスケープ ====================
@@ -372,7 +375,7 @@ F13 & g::SendAndUnmark("{Esc}")               ; Emacs C-g (キャンセル)
 F13 & x::SendAndUnmark("^x")        ; カット
 F13 & w::SendAndUnmark(TermOr("^w", "^x"))   ; カット / 端末:kill-region (Ctrl+W)
 F13 & c::SendAndUnmark("^c")        ; コピー (端末では Ctrl+C=SIGINT で正しい)
-!w::SendAndUnmark(TermOr("!w", "^c")), MaskAlt()   ; コピー (Emacs M-w) / 端末:Alt+w=kill-ring-save
+!w::MaskAlt(), SendAndUnmark(TermOr("!w", "^c")), MaskAlt()   ; コピー (Emacs M-w) / 端末:Alt+w=kill-ring-save
 F13 & v::SendAndUnmark("^v")        ; ペースト
 F13 & y::SendAndUnmark(TermOr("^y", "^v"))   ; ペースト / 端末:yank (Ctrl+Y)
 
