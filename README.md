@@ -1,11 +1,12 @@
 # Ecaps
 
-nWindows 上で Emacs / Unix シェル風のキーバインドを実現する AutoHotkey v2 スクリプト。
+Windows 上で Emacs / Unix シェル風のキーバインドを実現する AutoHotkey v2 スクリプト。
 
 物理 **CapsLock** キーを **F13** に割り当てた上で、`F13 + key` の組合せに Emacs 風の操作を割り当てます。Windows 既定の Ctrl ショートカット（`Ctrl+S` / `Ctrl+C` 等）はそのまま使えるため、Windows と Emacs の操作体系を両立できます。
 
 - **対象**: AutoHotkey **v2.0** 以降（動作確認: 2.0.24 / 2.0.29）
-- **前提**: 日本語 109 キーボード
+- **前提**: Windows 10 / 11、日本語 109 キーボード
+- **リポジトリ**: https://github.com/nofukao/Ecaps
 - **作者**: nofukao
 
 ---
@@ -14,6 +15,12 @@ nWindows 上で Emacs / Unix シェル風のキーバインドを実現する Au
 
 - [特徴](#特徴)
 - [インストール](#インストール)
+  - [(A) AI に依頼する場合](#a-ai-に依頼する場合)
+  - [(B) 自分で行う場合](#b-自分で行う場合)
+  - [install.ps1 が行うこと](#installps1-が行うこと)
+  - [標準の構成](#標準の構成)
+  - [更新・移行・アンインストール](#更新移行アンインストール)
+  - [手動インストール](#手動インストール)
 - [基本概念](#基本概念)
 - [キーバインド一覧](#キーバインド一覧)
   - [カーソル移動](#カーソル移動)
@@ -25,6 +32,7 @@ nWindows 上で Emacs / Unix シェル風のキーバインドを実現する Au
   - [日本語入力 (IME) 制御](#日本語入力-ime-制御)
 - [技術的補足](#技術的補足)
 - [特定アプリでの無効化](#特定アプリでの無効化)
+- [テスト](#テスト)
 
 ---
 
@@ -33,37 +41,128 @@ nWindows 上で Emacs / Unix シェル風のキーバインドを実現する Au
 - ホームポジションを崩さず Emacs 風カーソル移動・編集
 - `F13 + Space` で **Set Mark**（選択モード）— Emacs の挙動を再現
 - 日本語入力の **ON / OFF を直接制御**（トグルではない確定動作）
-- **ターミナル/コンソール** (Windows Terminal, PuTTY, cmd, Git Bash 等) では、削除・選択・カット/ペーストを Unix シェル (readline) 流の制御キーへ自動で切り替え
-- リモートデスクトップ (mstsc.exe) 配下でも IME 制御が動作
-- 未定義の `F13 + キー` は自動的に `Ctrl + キー` にフォールバック
+- **ターミナル/コンソール**（Windows Terminal, PuTTY, cmd, Git Bash, **VSCode 内蔵ターミナル** 等）では、削除・選択・カット/ペーストを Unix シェル (readline) 流の制御キーへ自動で切り替え
+- ローカル PC と リモートデスクトップ (RDP) 先の両方で動かしても、キーが二重に処理されない
+- 一部の `F13 + キー` は `Ctrl + キー` として動作（CapsLock を Ctrl 代わりに使える）
 - マウス操作も `F13 + クリック / ホイール` → `Ctrl + …` にマップ（拡大縮小等）
+- **1 行でインストール・更新**（AI エージェントに頼むこともできる）
 
 ---
 
 ## インストール
 
-### 1. 物理 CapsLock を F13 に割り当て
+インストールと更新は、リポジトリ直下の **`install.ps1`** が行います。AI に頼む場合も自分で行う場合も同じ `install.ps1` が実行されるので、どの PC でも同じ構成になります。
 
-Windows のレジストリレベルで CapsLock を F13 (scancode `0x0064`) に変更します。再起動後、CapsLock を押すと OS は F13 として認識します。
+| 方法 | あなたがすること |
+|---|---|
+| **(A) AI に依頼する** | AI エージェント（Claude Code など）に「https://github.com/nofukao/Ecaps を設定して」と頼む |
+| **(B) 自分で行う** | PowerShell で 1 行のコマンドを実行する |
 
-代表的な方法:
+どちらの場合も、AutoHotkey の導入や CapsLock の割り当てが必要なときは **UAC（管理者権限の確認）が 1 回出る**ので「はい」を押してください。CapsLock の割り当てを新しく設定した場合は、**Windows の再起動後**に有効になります。
 
-- **ChangeKey** などのキー割り当て変更ツールを使う
-- または `.reg` ファイルでスキャンコードマップを直接書き込む
+### (A) AI に依頼する場合
 
-### 2. AutoHotkey v2 をインストール
+AI エージェント（Claude Code など）に、次のように頼みます。
 
-[AutoHotkey 公式サイト](https://www.autohotkey.com/) から v2 をダウンロードしてインストールします。
+```
+https://github.com/nofukao/Ecaps を設定して
+```
 
-### 3. スクリプトを配置・自動起動
+更新するときも同じ依頼（または「最新にして」）でかまいません。途中で UAC の確認が出たら「はい」を押し、最後に AI から「再起動が必要」と報告されたら再起動してください。
 
-1. `Ecaps.ahk` を任意のフォルダに配置（例: `OneDrive\bin\AutoHotkey\`）
-2. `Win + R` → `shell:startup` を実行してスタートアップフォルダを開く
-3. `Ecaps.ahk` のショートカットをそこに配置 → Windows 起動時に自動実行されます
+#### AI エージェントへの指示
 
-### 4. (任意) PowerShell を Emacs 編集モードにする
+> この節は、上の依頼を受けた AI エージェント向けの手順です。
 
-ローカル PowerShell を bash（SSH 先の readline）と同じ行編集にすると、`F13 + u`(行頭まで削除) / `F13 + k`(行末まで削除) などが PowerShell でも期待どおり動きます。PowerShell タブで以下を実行します（管理者権限は不要）。
+1. **実行前にユーザーへ伝える**: 次の 3 点を伝えてから実行する。
+   - AutoHotkey v2 の導入（winget）と、CapsLock のキー割り当て（レジストリ `HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout` の `Scancode Map`）を、必要な場合に自動で行うこと。
+   - その場合は **UAC の確認が 1 回出るので、ユーザーが「はい」を押す必要がある**こと。
+   - キー割り当てを新しく設定した場合は、Windows の再起動が必要なこと。
+2. **実行する**: 下の「(B) 自分で行う場合」の 1 行を、**そのまま** PowerShell（または `powershell` を呼べるシェル）で実行する。UAC の応答を待つ間ブロックするので、タイムアウトは長め（数分）にする。
+   - オプションは、ユーザーが明示した場合だけ付ける。特に `-Force`（既存のキー割り当ての上書き）と `-PowerShellEmacs`（PowerShell プロファイルの変更）は、ユーザーの指示なしに付けない。
+   - `install.ps1` が行わない変更（レジストリの手動編集、他のソフトの導入・削除など）は行わない。
+3. **出力を確認する**: 各行の `[OK]` / `[CHANGED]` / `[TODO]` / `[ERROR]` と、最後の `Done.` または `Action needed:` を読む。
+4. **完了条件**: `Installed version:` に版（例 `v1.0.0`）が表示され、`[ERROR]` が無いこと。`Action needed:` があれば、その内容（再起動が必要、既存のキー割り当てが標準と違う、UAC が拒否された、など）をユーザーにそのまま伝える。`[ERROR]` があれば、その行を示して対応をユーザーと相談する。
+5. **更新を頼まれた場合**も、同じ 1 行を実行する（新しいリリースがある場合だけ入れ替わる）。
+
+### (B) 自分で行う場合
+
+1. PowerShell を開く（`Win + X` →「ターミナル」。管理者として開く必要はありません）。
+2. 次の 1 行を貼り付けて実行する。
+
+   ```powershell
+   powershell -ExecutionPolicy Bypass -c "& ([scriptblock]::Create((irm https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1)))"
+   ```
+
+3. UAC の確認が出たら「はい」を押す（AutoHotkey の導入や CapsLock の割り当てが必要な場合だけ出ます）。
+4. 出力を確認する。各行は `[OK]`（済み）/ `[CHANGED]`（変更した）/ `[TODO]`（要対応）/ `[ERROR]`（失敗）で、最後に `Done.`（完了）または `Action needed:`（要対応の一覧）が表示されます。
+5. 「Restart Windows …」と表示されたら Windows を再起動する。
+
+**更新**するときも、同じ 1 行を実行します。何度実行しても同じ状態になり、新しいリリースがあるときだけ入れ替わります。
+
+オプションは 1 行の末尾（`)))` の後ろ）に付けます。例: `... install.ps1))) -PowerShellEmacs"`
+
+| オプション | 内容 |
+|---|---|
+| `-Version v1.2.0` | 最新ではなく、指定した版を入れる |
+| `-NoUIA` | UIA 版ではなく、通常版の AutoHotkey で起動する |
+| `-NoAdmin` | 管理者権限の操作をせず、必要なコマンドを表示するだけにする |
+| `-Force` | 既に別の内容が入っている `Scancode Map` を、標準値で上書きする |
+| `-PowerShellEmacs` | PowerShell の行編集を Emacs モードにする（[下記](#任意-powershell-を-emacs-編集モードにする)） |
+| `-Source <フォルダ>` | リリースではなく、手元のフォルダから設置する（開発・テスト用） |
+
+### install.ps1 が行うこと
+
+| # | 内容 | 既に済んでいれば |
+|---|---|---|
+| 1 | AutoHotkey v2 が無ければ winget で導入する（管理者権限） | 何もしない |
+| 2 | CapsLock の割り当て（[標準値](#標準の構成)）が未設定なら書き込む（管理者権限・要再起動） | 何もしない。別の値が入っていれば上書きせず報告する |
+| 3 | GitHub の**最新リリース**を設置先 `%LOCALAPPDATA%\Programs\Ecaps` に置き、版を `VERSION.txt` に記録する | 同じ版なら何もしない |
+| 4 | スタートアップに `Ecaps.lnk` を作る（UIA 版 AutoHotkey で起動）。Ecaps.ahk を指す古いショートカットは、二重起動の原因になるので削除する | 何もしない |
+| 5 | 別の場所から起動中の Ecaps を終了し、設置先の Ecaps を起動する（更新時は再起動する） | 何もしない |
+
+1 と 2 の管理者権限の操作は、必要なものだけを 1 つの昇格プロセスにまとめて行うので、UAC の確認は最大 1 回です。
+
+### 標準の構成
+
+| 項目 | 標準値 | 理由 |
+|---|---|---|
+| 設置先 | `%LOCALAPPDATA%\Programs\Ecaps` | Windows のユーザー単位アプリの慣例。管理者権限が不要で、OneDrive 同期の対象外（PC ごとに独立して更新される） |
+| 配布 | [GitHub Releases](https://github.com/nofukao/Ecaps/releases) の zip | Git が不要。リリースした（テスト済みの）版だけが入る |
+| AutoHotkey | v2（winget の `AutoHotkey.AutoHotkey`）、全ユーザー向けに Program Files へ | UIA 版の実行ファイルが作られる |
+| 自動起動 | スタートアップの `Ecaps.lnk` → `AutoHotkey64_UIA.exe "…\Ecaps.ahk"` | UIA 版は、管理者権限のウィンドウ（管理者ターミナル、タスクマネージャー等）でも効く |
+| キー割り当て | CapsLock → F13、ScrollLock → CapsLock | 下記 |
+
+**キー割り当て（Scancode Map）**: レジストリ `HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout` の値 `Scancode Map`（REG_BINARY）を次の値にします。CapsLock を F13（scancode `0x0064`）に、ScrollLock を CapsLock にします（CapsLock の機能は ScrollLock キーで使えます）。**ChangeKey などのキー割り当てツールで同じ設定をした場合も、この値になります。**
+
+```
+00 00 00 00  00 00 00 00  03 00 00 00  64 00 3A 00  3A 00 46 00  00 00 00 00
+```
+
+### 更新・移行・アンインストール
+
+- **更新**: (A) または (B) と同じ手順です。新しいリリースがあるときだけ入れ替わり、Ecaps も再起動されます。
+- **移行**: 以前の手順で別の場所（OneDrive など）に置いて自動起動していた PC も、(A) または (B) を行うだけで移行できます。古いスタートアップのショートカットは削除され、古い場所の Ecaps は終了して、標準の設置先の Ecaps に切り替わります。古い場所のファイルは削除しないので、不要なら手で消してください。
+- **カスタマイズの注意**: 設置先の `Ecaps.ahk` を直接書き換えても、更新すると上書きされます。キーバインドを変えたい場合は、リポジトリを fork するなどして変更を管理してください。
+- **アンインストール**:
+  1. タスクトレイの Ecaps（H アイコン）を右クリック → Exit
+  2. スタートアップの `Ecaps.lnk` を削除（`Win + R` → `shell:startup`）
+  3. `%LOCALAPPDATA%\Programs\Ecaps` を削除
+  4. CapsLock を元に戻す場合は、管理者権限の PowerShell で `Remove-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map'` を実行して再起動（他の割り当てがあれば、それも消えるので注意）
+  5. AutoHotkey も不要なら、`winget uninstall --id AutoHotkey.AutoHotkey`
+
+### 手動インストール
+
+`install.ps1` を使わずに設置する場合の手順です（結果は同じ構成になります）。
+
+1. **CapsLock を F13 に**: ChangeKey などで[標準のキー割り当て](#標準の構成)を設定し、再起動する。
+2. **AutoHotkey v2**: [公式サイト](https://www.autohotkey.com/) からダウンロードし、全ユーザー向け（Program Files）にインストールする（UIA 版が作られる）。
+3. **配置**: [Releases](https://github.com/nofukao/Ecaps/releases) の zip（Source code）を展開し、`Ecaps.ahk` などを `%LOCALAPPDATA%\Programs\Ecaps` に置く。
+4. **自動起動**: `shell:startup` に、リンク先が `"C:\Program Files\AutoHotkey\v2\AutoHotkey64_UIA.exe" "%LOCALAPPDATA%\Programs\Ecaps\Ecaps.ahk"` のショートカットを作り、ダブルクリックして起動する。
+
+### (任意) PowerShell を Emacs 編集モードにする
+
+ローカル PowerShell を bash（SSH 先の readline）と同じ行編集にすると、`F13 + u`(行頭まで削除) / `F13 + k`(行末まで削除) などが PowerShell でも期待どおり動きます。`install.ps1` に `-PowerShellEmacs` を付けるか、PowerShell で以下を実行します（管理者権限は不要）。
 
 ```powershell
 if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
@@ -79,13 +178,13 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
 
 ### 修飾キーとしての F13 (= 物理 CapsLock)
 
-本ドキュメントで `F13` と表記しているキーは、すべて **物理的な CapsLock キー** を指します。インストール手順 1 でリマップ済みなので、CapsLock を押しながら他のキーを押すことで、以下のキーバインドが発動します。
+本ドキュメントで `F13` と表記しているキーは、すべて **物理的な CapsLock キー** を指します。インストール時に CapsLock を F13 に割り当てるので、CapsLock を押しながら他のキーを押すことで、以下のキーバインドが発動します。
 
 ### Set Mark（選択モード）
 
 `F13 + Space` で選択モードのトグルが切り替わります。アクティブな間はカーソル移動キーが `Shift + 矢印` として送出され、範囲選択を伸ばせます。コピー・カット・編集系のコマンドを実行すると自動的にリセットされます。
 
-ターミナル/コンソールでは仕組みが異なり、`F13 + Space` は readline の set-mark（`Ctrl+Space`）を送り、移動キーは `Shift` を付けずにそのまま送出します（端末は mark〜カーソル間を region として扱うため）。詳細は [ターミナル/コンソールでの挙動](#ターミナルコンソールでの挙動) を参照。
+ターミナル/コンソール（VSCode 内蔵ターミナルを含む）では仕組みが異なり、`F13 + Space` は readline の set-mark を送り、移動キーは `Shift` を付けずにそのまま送出します（端末は mark〜カーソル間を region として扱うため）。詳細は [ターミナル/コンソールでの挙動](#ターミナルコンソールでの挙動) を参照。
 
 ---
 
@@ -103,8 +202,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
 | `F13 + e` | 行末へ (End) | end-of-line |
 | `Alt + f` | 単語右へ (Ctrl+→) | forward-word |
 | `Alt + b` | 単語左へ (Ctrl+←) | backward-word |
-| `Alt + n` | ページダウン (PgDn) | scroll-up |
-| `Alt + p` | ページアップ (PgUp) | scroll-down |
+| `Alt + n` | `Ctrl+PgDn` を送る（アプリにより次のページ / 次のタブ） | scroll-up |
+| `Alt + p` | `Ctrl+PgUp` を送る（アプリにより前のページ / 前のタブ） | scroll-down |
 | `Alt + <` | 文書先頭へ (Ctrl+Home) | beginning-of-buffer |
 | `Alt + >` | 文書末尾へ (Ctrl+End) | end-of-buffer |
 
@@ -119,15 +218,15 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
 | `Alt + d` | カーソル位置から単語末まで削除 | kill-word（端末: `Alt+d`） |
 | `Alt + h` | 単語頭からカーソル位置まで削除 | backward-kill-word（端末: `Ctrl+W`） |
 | `F13 + m` | 改行 (Enter) | newline |
-| `F13 + t` | タブ (Tab) | — |
+| `F13 + t` | タブ (Tab)。`Shift` を押しながらだと `Shift+Tab` | — |
 | `F13 + /` | 元に戻す (Ctrl+Z) | undo |
 
 ### 選択・コピー・カット・ペースト
 
 | キー操作 | 動作 | 備考 |
 |---|---|---|
-| `F13 + Space` | **選択モード開始 / 終了** | 押下後、移動キーで範囲選択（端末: `Ctrl+Space` = set-mark） |
-| `F13 + w` | カット (Ctrl+X) | Emacs `C-w`（端末: `Ctrl+W` = kill-region） |
+| `F13 + Space` | **選択モード開始 / 終了** | 押下後、移動キーで範囲選択（端末: set-mark） |
+| `F13 + w` | カット (Ctrl+X) | Emacs `C-w`（端末: `Ctrl+W`） |
 | `F13 + x` | カット (Ctrl+X) | Windows 互換 |
 | `Alt + w` | コピー (Ctrl+C) | Emacs `M-w`（端末: `Alt+w` = kill-ring-save。emacs 等で有効） |
 | `F13 + c` | コピー (Ctrl+C) | Windows 互換（端末では `Ctrl+C` = 中断/SIGINT） |
@@ -135,6 +234,8 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
 | `F13 + v` | ペースト (Ctrl+V) | Windows 互換 |
 | `F13 + g` | キャンセル (Esc) | Emacs `C-g` |
 | `F13 + [` | エスケープ (Esc) | — |
+
+`Enter` キーを押したときも選択モードは解除されます（`Enter` 自体はそのまま入力されます）。
 
 ### ファンクションキー
 
@@ -173,17 +274,26 @@ Windows の IME ステータスを **直接制御** します。「半角/全角
 
 `F13 + j` で「IME ON だが半角英数」という状態になるのは、日本語キーボードで日本語と英語を混在入力する際に都合が良いためです。必要に応じて `F10` で全角英数 / `F9` で全角ひらがなに切り替えてください。
 
-> **リモートデスクトップ対応**: アクティブウィンドウが `mstsc.exe` の場合、Windows メッセージは遠隔 PC へ転送されないため、内部的にキー入力シーケンス（`VK_IME_OFF` → `半角/全角` → `Shift+無変換` ×2）に切り替えて同等の状態を再現します。MS-IME の「前回モードを記憶」設定が ON だと崩れる可能性があるため、OFF を推奨します。
-
 ---
 
 ## 技術的補足
 
-### 未定義キーのフォールバック
+### Ctrl + キー として動くキー
 
-スクリプト後半で、Emacs キーバインドとして定義されていない `F13 + キー`（例: `F13 + z`, `F13 + l`, `F13 + q` など）は **通常の `Ctrl + キー`** として動作するように記述されています。
+次の `F13 + キー` は、そのまま `Ctrl + キー` として送られます。CapsLock を Ctrl 代わりに使って、Windows のショートカットを実行できます。
 
-これにより、定義外の Windows ショートカットも CapsLock を Ctrl 代わりに使って実行できます。
+| キー操作 | 送られるキー | 例 |
+|---|---|---|
+| `F13 + z` | `Ctrl + Z` | 元に戻す |
+| `F13 + o` | `Ctrl + O` | 開く |
+| `F13 + q` | `Ctrl + Q` | 終了（アプリによる） |
+| `F13 + l` | `Ctrl + L` | アドレスバー / 画面クリア |
+| `F13 + r` | `Ctrl + R` | [上記](#履歴検索再読込置換) |
+| `F13 + -` / `F13 + =` | `Ctrl + -` / `Ctrl + =` | 縮小 / 拡大 |
+| `F13 + ]` / `F13 + \` / `F13 + ;` | `Ctrl + ]` / `Ctrl + \` / `Ctrl + ;` | エディタ等のショートカット |
+| `F13 + ,` / `F13 + .` | `Ctrl + ,` / `Ctrl + .` | 設定 / クイックフィックス（VSCode 等） |
+
+上の表にも[キーバインド一覧](#キーバインド一覧)にも無いキーは、F13 を押していても通常どおり入力されます。
 
 ### マウス操作
 
@@ -207,13 +317,27 @@ GUI アプリの行編集は「**選択してから削除**」「**クリップ�
 
 そのためアクティブウィンドウがターミナル/コンソールのときは、削除・選択・カット/ペーストを自動で readline 流の制御キーに切り替えます（GUI 流の「Shift+移動 → Del」「Ctrl+X/V」を送ると、端末では文字化けや誤動作になるため）。
 
-| 判定対象 | 例 |
+| 判定対象 | 判定方法 |
 |---|---|
 | Windows Terminal | `WindowsTerminal.exe` / `OpenConsole.exe` |
 | PuTTY | ウィンドウクラス `PuTTY` |
 | 旧コンソール | `cmd` / `PowerShell`（`ConsoleWindowClass`） |
 | Git Bash / Cygwin / WSL | `mintty.exe` |
 | Tera Term | `ttermpro.exe` |
+| **VSCode 内蔵ターミナル** | `Code.exe` が前面のとき、UI Automation でフォーカス先がターミナル（`xterm-helper-textarea`）かを判定 |
+
+#### VSCode 内蔵ターミナル
+
+VSCode はエディタもターミナルも同じウィンドウなので、ウィンドウ単位では区別できません。そこで、VSCode が前面のときだけ UI Automation でフォーカス先を問い合わせ、ターミナルなら端末として扱います（VSCode の設定変更は不要です）。エディタや Claude Code の入力欄などは、これまでどおり GUI として扱います。
+
+また VSCode は、既定の状態では一部のキーをターミナルに渡さず自分で使います（例: `Ctrl+K` はショートカットの 1 打目として横取りされる）。そのため VSCode 内蔵ターミナルでは、送るキーを次のように置き換えています。いずれも VSCode の設定を変えずに、bash に同じ制御文字が届きます。
+
+| 操作 | 端末ウィンドウ | VSCode 内蔵ターミナル |
+|---|---|---|
+| 行末まで削除 (`F13 + k`) | `Ctrl+K` | 制御文字 `^K` を直接送る |
+| 単語末まで削除 (`Alt + d`) | `Alt+d` | `Ctrl+Del`（VSCode が `ESC d` に変換） |
+| set-mark (`F13 + Space`) | `Ctrl+Space` | `Ctrl+Shift+2`（VSCode が NUL に変換） |
+| その他（`Ctrl+U` / `Ctrl+W` / `Ctrl+Y` / `Alt+w`） | 同じ | 同じ |
 
 #### 注意点：中で動くプログラムまでは判定できない
 
@@ -232,7 +356,7 @@ GUI アプリの行編集は「**選択してから削除**」「**クリップ�
 
 #### PowerShell を SSH 先と一致させる（PSReadLine の Emacs モード）
 
-ローカル PowerShell を SSH 先（readline）と同じ挙動にするには、PSReadLine を **Emacs 編集モード**にします。これで `Ctrl+U`(行頭まで) / `Ctrl+K`(行末まで) / `Ctrl+W` / `Ctrl+Y` / `Ctrl+Space` が bash と同じ意味になります。
+ローカル PowerShell を SSH 先（readline）と同じ挙動にするには、PSReadLine を **Emacs 編集モード**にします。これで `Ctrl+U`(行頭まで) / `Ctrl+K`(行末まで) / `Ctrl+W` / `Ctrl+Y` / `Ctrl+Space` が bash と同じ意味になります。`install.ps1` に `-PowerShellEmacs` を付けると、以下の手順をまとめて行います。
 
 > この設定は **Windows ターミナルの設定画面ではなく、PowerShell のプロファイル**（起動時に毎回読み込まれる `.ps1`）に書きます。
 
@@ -269,6 +393,14 @@ Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force   # 管理者権限�
 - **PowerShell 7 (`pwsh`)** は別プロファイル（`…\Documents\PowerShell\…`）なので、使う場合はそちらにも同じ追記が必要です。
 - 会社管理 PC 等で `MachinePolicy`/`UserPolicy` により実行ポリシーがロックされている場合は変更できません。
 
+### ローカル PC と RDP 先の両方で使う場合
+
+手元の PC と、リモートデスクトップ (RDP) で接続する先の PC の両方に Ecaps を入れて使えます。手元の Ecaps は、**RDP のウィンドウ (`mstsc.exe`) が前面の間は自動で止まり**、キーをそのまま RDP 先へ送ります。RDP 先では、RDP 先の Ecaps がキーを処理します。これにより、キーが二重に変換されることはありません（RDP 先の Ecaps は常に有効です）。
+
+日本語入力の ON / OFF（`F13 + j` / `F13 + i`）も、RDP 先の Ecaps が RDP 先の IME を直接制御するので、そのまま動きます。
+
+> RDP 先からさらに別の PC へ RDP する場合など、RDP クライアントが前面のまま Ecaps がキーを処理するときは、Windows のメッセージが接続先へ届かないため、IME 制御をキー入力（`VK_IME_OFF` → `半角/全角` → `Shift+無変換` ×2）で再現します。MS-IME の「前回モードを記憶」が ON だと崩れる可能性があるため、OFF を推奨します。
+
 ### サスペンド時のトレイアイコン
 
 AutoHotkey v2 のデフォルトではサスペンド時のトレイアイコンの差異が小さく状態が判別しづらいため、本スクリプトでは `TraySetIcon` で明示的に切り替えています。AutoHotkey 実行ファイル本体に埋め込まれているアイコン（index 1: 既定 / index 2: サスペンド）を利用するため、追加ファイルなしで動作します。
@@ -277,13 +409,31 @@ AutoHotkey v2 のデフォルトではサスペンド時のトレイアイコン
 
 ## 特定アプリでの無効化
 
-PuTTY、Vim、GVim、Emacs 本体など **本キーバインドを適用したくないアプリ** がある場合は、スクリプト内の `GroupAdd("NoEcaps", ...)` の隣に、そのウィンドウを `NoEcaps` グループへ追加してください。
+PuTTY、Vim、GVim、Emacs 本体など **本キーバインドを適用したくないアプリ** がある場合は、`Ecaps.ahk` の `#HotIf !ShouldYieldToRDP()` の行に条件を足します（RDP については自動で処理されるので指定は不要です）。
 
 ```ahk
-GroupAdd("NoEcaps", "ahk_class PuTTY")
-GroupAdd("NoEcaps", "ahk_class Vim")
+#HotIf !ShouldYieldToRDP()
+      && !WinActive("ahk_class PuTTY")
+      && !WinActive("ahk_class Vim")
 ```
 
-ローカル PC で動作中のリモートデスクトップ (mstsc) は自動でこのグループに入ります。それ以外はデフォルトで全アプリ有効です。
+> 設置先（`%LOCALAPPDATA%\Programs\Ecaps`）の `Ecaps.ahk` を書き換えても、`install.ps1` で更新すると上書きされます。変更を残したい場合は、リポジトリを fork するなどして管理してください。
 
-> `#HotIf` に `||` や自作関数を含む式を書くのは避けてください。キーを押し続けたときにホットキーが外れて素の文字が入力される原因になります（[設計ノート 1.5](docs/design-notes.md)）。
+---
+
+## テスト
+
+`Ecaps.ahk` を変更したら、ゴールデンテストで送出キー列に意図しない変化がないことを確認します（Python 3 が必要。依存ライブラリなし）。
+
+```
+python tests/golden_test.py            # golden (tests/golden/*.txt) と比較
+python tests/golden_test.py --update   # 意図した変化なら golden を更新
+```
+
+端末向けの挙動を変えた場合は、VSCode 内蔵ターミナル (Git Bash) で bash が実際にどう編集したかを確かめる e2e テストも実行します。テスト用の VSCode を別インスタンスで起動するので、普段の VSCode の設定には影響しません。
+
+```
+python tests/vscode_terminal_test.py
+```
+
+テストに使う AutoHotkey は、環境変数 `ECAPS_AHK_EXE` に実行ファイルのパスを入れると切り替えられます（新しい版への適合確認に使います）。どちらのテストも実行中の約 1 分間は、キーボードとマウスに触れないでください。仕組みと制約は [設計ノート 7 章](docs/design-notes.md) を参照してください。
