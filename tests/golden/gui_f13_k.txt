@@ -1,0 +1,6 @@
+ahk down LShift
+ahk down End
+ahk up End
+ahk up LShift
+ahk down Del
+ahk up Del

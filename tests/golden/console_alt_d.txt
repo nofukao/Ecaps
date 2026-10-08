@@ -1,0 +1,5 @@
+drv down LAlt
+ahk down D
+ahk up D
+ahk up LAlt
+drv up LAlt

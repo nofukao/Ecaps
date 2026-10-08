@@ -1,0 +1,14 @@
+ahk down LShift
+ahk down Right
+ahk up Right
+ahk up LShift
+ahk down LShift
+ahk down End
+ahk up End
+ahk up LShift
+ahk down LCtrl
+ahk down X
+ahk up X
+ahk up LCtrl
+ahk down Right
+ahk up Right

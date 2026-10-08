@@ -1,0 +1,4 @@
+ahk down LCtrl
+ahk down Y
+ahk up Y
+ahk up LCtrl

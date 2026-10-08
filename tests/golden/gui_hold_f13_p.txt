@@ -1,0 +1,2 @@
+ahk down Up x150
+ahk up Up x150

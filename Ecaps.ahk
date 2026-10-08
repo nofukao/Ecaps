@@ -31,6 +31,13 @@
 #UseHook
 
 InstallKeybdHook()
+
+; 送出は SendEvent で行う (v2 既定の SendInput を使わない)。
+;   SendInput は送出の間だけ自スクリプトのキーボードフックを外して付け直す。
+;   F13+p 等を押し続けるとオートリピートのたびにこれが起き、フックが外れて
+;   いる隙に届いたリピートが素の "p" として漏れる。SendEvent はフックを外さない。
+;   (詳細は docs/design-notes.md 1.5)
+SendMode("Event")
 SetKeyDelay(0)
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;

@@ -1,0 +1,6 @@
+ahk down LCtrl
+ahk down Space
+ahk up Space
+ahk up LCtrl
+ahk down Right
+ahk up Right

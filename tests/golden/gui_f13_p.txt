@@ -1,0 +1,2 @@
+ahk down Up
+ahk up Up

@@ -1,0 +1,2 @@
+ahk down Right x300
+ahk up Right x300
