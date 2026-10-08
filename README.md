@@ -4,7 +4,7 @@ nWindows 上で Emacs / Unix シェル風のキーバインドを実現する Au
 
 物理 **CapsLock** キーを **F13** に割り当てた上で、`F13 + key` の組合せに Emacs 風の操作を割り当てます。Windows 既定の Ctrl ショートカット（`Ctrl+S` / `Ctrl+C` 等）はそのまま使えるため、Windows と Emacs の操作体系を両立できます。
 
-- **対象**: AutoHotkey **v2.0** 以降
+- **対象**: AutoHotkey **v2.0** 以降（動作確認: 2.0.24 / 2.0.29）
 - **前提**: 日本語 109 キーボード
 - **作者**: nofukao
 

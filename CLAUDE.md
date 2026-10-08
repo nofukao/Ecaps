@@ -10,4 +10,4 @@
 - 構文チェックは `"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" /ErrorStdOut /validate Ecaps.ahk`。
 - コミットメッセージは日本語で、理由（なぜ）を書く。
 - インストーラ `install.ps1` を変えたら、README の「インストール」節（オプション表・AI エージェント向け手順）も合わせて直す。`install.ps1` は ASCII のみで書く（PowerShell 5.1 は BOM 無しを ANSI で読み、`irm` 経由でも実行されるため）。
-- リリース手順: golden / e2e テスト合格 → main を push → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → GitHub でそのタグからリリースを作成（Web 画面、または gh の `gh release create vX.Y.Z --generate-notes`）。各 PC は `install.ps1` で最新リリースを取得するので、**リリースを作るまで他の PC には配布されない**。
+- リリース手順: AutoHotkey の最新安定版（`winget show --id AutoHotkey.AutoHotkey`）を確認し、ポータブル版 zip を展開して `ECAPS_AHK_EXE=<その AutoHotkey64.exe>` で golden / e2e テストを流す（README の「動作確認」の版も更新）→ golden / e2e テスト合格 → main を push → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → GitHub でそのタグからリリースを作成（Web 画面、または gh の `gh release create vX.Y.Z --generate-notes`）。各 PC は `install.ps1` で最新リリースを取得するので、**リリースを作るまで他の PC には配布されない**。
