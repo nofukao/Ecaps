@@ -1,0 +1,8 @@
+drv down LCtrl
+drv up LCtrl
+drv down F
+drv up F
+drv down LCtrl
+drv up LCtrl
+ahk down Right
+ahk up Right

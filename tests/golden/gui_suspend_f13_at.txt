@@ -1,0 +1,4 @@
+drv down F
+drv up F
+ahk down Right
+ahk up Right

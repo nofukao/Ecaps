@@ -1,0 +1,4 @@
+ahk down LCtrl
+ahk down Yen
+ahk up Yen
+ahk up LCtrl

@@ -287,6 +287,19 @@ KillToEdge(consoleKey, guiRangeKey) =>
 
 
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+; ※ 記号キーはスキャンコード (sc) で書く
+;   AutoHotkey は "@" "[" "-" などの記号キー名を、スクリプト起動時の
+;   キーボード配列で実キーに対応づける。RDP 等で英語配列のまま起動すると
+;   別のキーに化ける (例: "@" が "2" のキーになり F13+@ が効かない)。
+;   また日本語配列では "=" が Shift+"-" なので "-" と同じキーを取り合う。
+;   そこで記号キーは日本語 109 キーボードの刻印位置のスキャンコードで書く。
+;     sc01A=@  sc01B=[  sc02B=]  sc00C=-  sc027=;  sc033=,  sc034=.
+;     sc035=/  sc07D=\(¥)
+;   英字・数字は配列で位置が変わらないので名前のままでよい。
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; ※ 特定アプリ (PuTTY, Vim, GVIM, Emacs 等) でこの Emacs キーバインドを
 ;    無効にしたい場合は、下の #HotIf に条件を追加してください。例:
 ;
@@ -305,7 +318,7 @@ KillToEdge(consoleKey, guiRangeKey) =>
 
 
 ;==================== AutoHotkey 制御 ====================
-; サスペンド (トグル) : F13+@, Pause, Ctrl+@
+; サスペンド (トグル) : F13+@, Pause, Ctrl+@  (@ は sc01A。記号キーの書き方は上の注記)
 ;
 ; v2 では「ホットキー本体が Suspend のみ」でも自動除外されないため、
 ; #SuspendExempt で明示的にサスペンド対象から外す必要がある。
@@ -318,9 +331,9 @@ KillToEdge(consoleKey, guiRangeKey) =>
 ;   index 1 : 既定の H アイコン
 ;   index 2 : サスペンド時アイコン (透明な H ―― 一番見分けが付きやすい)
 #SuspendExempt
-F13 & @::ToggleSuspend()
+F13 & sc01A::ToggleSuspend()        ; F13 + @
 Pause::ToggleSuspend()
-^@::ToggleSuspend()
+^sc01A::ToggleSuspend()             ; Ctrl + @
 #SuspendExempt False
 
 ToggleSuspend() {
@@ -346,8 +359,8 @@ F13 & e::SendMove("{End}")
 !b::MaskAlt(), SendMove("^{Left}"), MaskAlt()
 !n::MaskAlt(), SendMove("^{PgDn}"), MaskAlt()
 !p::MaskAlt(), SendMove("^{PgUp}"), MaskAlt()
-!<::MaskAlt(), SendMove("^{Home}"), MaskAlt()
-!>::MaskAlt(), SendMove("^{End}"), MaskAlt()
+!+sc033::MaskAlt(), SendMove("^{Home}"), MaskAlt()     ; Alt + < (Shift+,)
+!+sc034::MaskAlt(), SendMove("^{End}"), MaskAlt()      ; Alt + > (Shift+.)
 
 
 ;==================== Set Mark (選択モード) ====================
@@ -368,7 +381,7 @@ F13 & u::KillToEdge("^u", "{Home}")     ; 行頭まで              端末:Ctrl+
 ~Enter::Mark.Reset()                          ; Enterは素通しで Mark のみ解除
 F13 & m::SendAndUnmark("{Enter}")             ; Ctrl+m 風 改行
 F13 & t::SendAndUnmarkShifted("{Tab}", "+{Tab}")    ; Shift 押下時は Shift+Tab (逆方向タブ)
-F13 & [::SendAndUnmark("{Esc}")
+F13 & sc01B::SendAndUnmark("{Esc}")           ; F13 + [
 F13 & g::SendAndUnmark("{Esc}")               ; Emacs C-g (キャンセル)
 
 
@@ -403,24 +416,23 @@ F13 & i::IMEOff()     ; 日本語入力 OFF
 
 ;==================== 上書き保存・Undo ====================
 F13 & s::Send("{Blind}^s")          ; 上書き保存 (Save)
-F13 & /::Send("{Blind}^z")          ; Undo
+F13 & sc035::Send("{Blind}^z")      ; Undo (F13 + /)
 
 
 ;==================== その他 — Ctrl+キー としてフォールバック ====================
 ; 上で定義していない F13+キー は、通常の Ctrl+キー として動作させる。
 ; これにより、CapsLock を Ctrl 代わりに使った汎用ショートカットも有効。
-F13 & -::Send("{Blind}^-")
-F13 & =::Send("{Blind}^=")
+F13 & sc00C::Send("{Blind}^{sc00C}")   ; - : Ctrl+- (Shift 併用で Ctrl+= になる)
 F13 & q::Send("{Blind}^q")
 F13 & o::Send("{Blind}^o")
 F13 & r::Send("{Blind}^r")          ; Ctrl+R: 履歴逆検索 / 再読込 / 置換 (Emacs C-r 風)
-F13 & }::Send("{Blind}^{]}")
-F13 & \::Send("{Blind}^{\}")
+F13 & sc02B::Send("{Blind}^{sc02B}")   ; ]
+F13 & sc07D::Send("{Blind}^{sc07D}")   ; \ (¥)
 F13 & l::Send("{Blind}^l")
-F13 & sc027::Send("{Blind}^{sc027}")
+F13 & sc027::Send("{Blind}^{sc027}")   ; ;
 F13 & z::Send("{Blind}^z")
-F13 & ,::Send("{Blind}^,")
-F13 & .::Send("{Blind}^.")
+F13 & sc033::Send("{Blind}^{sc033}")   ; ,
+F13 & sc034::Send("{Blind}^{sc034}")   ; .
 
 ; マウス: F13 + マウス操作 → Ctrl + マウス操作 (拡大縮小等に有用)
 F13 & LButton::Send("{Blind}^{LButton}")

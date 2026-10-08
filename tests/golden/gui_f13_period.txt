@@ -1,0 +1,4 @@
+ahk down LCtrl
+ahk down Period
+ahk up Period
+ahk up LCtrl

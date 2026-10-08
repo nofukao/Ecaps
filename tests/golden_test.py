@@ -123,6 +123,8 @@ VK_NAMES = {
     0xA0: "LShift", 0xA1: "RShift", 0xA2: "LCtrl", 0xA3: "RCtrl", 0xA4: "LAlt", 0xA5: "RAlt",
     0x10: "Shift", 0x11: "Ctrl", 0x12: "Alt", 0x5B: "LWin", 0x5C: "RWin",
     0xBC: "Comma", 0xBE: "Period", 0xBF: "Slash", 0xC0: "At", 0xDB: "LBracket",
+    # 日本語 109 配列の記号キー (VK は日本語配列のもの)
+    0xBD: "Minus", 0xDD: "RBracket", 0xDC: "Yen", 0xBB: "Semicolon", 0xBA: "Colon",
 }
 VK_NAMES.update({0x30 + i: str(i) for i in range(10)})
 VK_NAMES.update({0x41 + i: chr(0x41 + i) for i in range(26)})
@@ -302,6 +304,17 @@ for k in "kuwy":
 for k in ["d", "h", "w", "f"]:
     case(f"console_alt_{k}", CONSOLE, combo("LAlt", k))
 case("console_mark", CONSOLE, combo("F13", "Space") + combo("F13", "f"))
+# 記号キー (Ecaps.ahk ではスキャンコードで定義。起動時の配列に依存しないこと)
+for k in ["LBracket", "RBracket", "Minus", "Yen", "Semicolon", "Comma", "Period", "Slash"]:
+    case(f"gui_f13_{k.lower()}", GUI, combo("F13", k))
+# F13 + Shift + - は Ctrl + Shift + -（日本語配列の Ctrl + =）
+case("gui_f13_shift_minus", GUI, ["F13 down", "LShift down", "Minus tap", ("sleep", 0.15), "LShift up", "F13 up"])
+# Alt + < / Alt + > (= Alt + Shift + , / .)
+case("gui_alt_lt", GUI, ["LAlt down", "LShift down", "Comma tap", ("sleep", 0.15), "LShift up", "LAlt up"])
+case("gui_alt_gt", GUI, ["LAlt down", "LShift down", "Period tap", ("sleep", 0.15), "LShift up", "LAlt up"])
+# サスペンド: F13+@ で停止 → F13+f は素通り → F13+@ で再開 → F13+f は Right。Ctrl+@ も同様
+case("gui_suspend_f13_at", GUI, combo("F13", "At") + combo("F13", "f") + combo("F13", "At") + combo("F13", "f"))
+case("gui_suspend_ctrl_at", GUI, combo("LCtrl", "At") + combo("F13", "f") + combo("LCtrl", "At") + combo("F13", "f"))
 # 押し続け (オートリピート) で素のキーが漏れないこと
 for k in "fp":
     case(f"gui_hold_f13_{k}", GUI, held_repeat("F13", k, 150, 0.01), summarize=True)

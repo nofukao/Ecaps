@@ -1,0 +1,12 @@
+drv down LAlt
+drv down LShift
+ahk down vkE8
+ahk up vkE8
+ahk up LShift
+ahk down LCtrl
+ahk up LAlt
+ahk down Home
+ahk up Home
+ahk up LCtrl
+drv up LShift
+drv up LAlt
