@@ -16,11 +16,11 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 - [特徴](#特徴)
 - [インストール](#インストール)
   - [(A) AI に依頼する場合](#a-ai-に依頼する場合)
-  - [(B) 自分で行う場合](#b-自分で行う場合)
+  - [(B) コマンドで行う場合](#b-コマンドで行う場合)
+  - [(C) 手作業で行う場合](#c-手作業で行う場合)
   - [install.ps1 が行うこと](#installps1-が行うこと)
   - [標準の構成](#標準の構成)
   - [更新・移行・アンインストール](#更新移行アンインストール)
-  - [手動インストール](#手動インストール)
 - [基本概念](#基本概念)
 - [キーバインド一覧](#キーバインド一覧)
   - [カーソル移動](#カーソル移動)
@@ -52,14 +52,15 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 
 ## インストール
 
-インストールと更新は、[リリース](https://github.com/nofukao/Ecaps/releases)に添付した **`install.ps1`** が行います。AI に頼む場合も自分で行う場合も同じ `install.ps1` が実行されるので、どの PC でも同じ構成になります。
+インストールと更新は、[リリース](https://github.com/nofukao/Ecaps/releases)に添付した **`install.ps1`** が行います。(A) AI に頼む場合も (B) コマンドで行う場合も同じ `install.ps1` が実行されるので、どの PC でも同じ構成になります。(C) は、`install.ps1` を使わずに同じ構成を手で作る方法です。
 
 | 方法 | あなたがすること |
 |---|---|
 | **(A) AI に依頼する** | AI エージェント（Claude Code など）に「https://github.com/nofukao/Ecaps を設定して」と頼む |
-| **(B) 自分で行う** | PowerShell で 2 行のコマンドを実行する |
+| **(B) コマンドで行う** | PowerShell で 2 行のコマンドを実行する |
+| **(C) 手作業で行う** | キーの割り当て、AutoHotkey の導入、設置、自動起動を自分で行う（`install.ps1` を使わない） |
 
-どちらの場合も、AutoHotkey の導入や CapsLock の割り当てが必要なときは **UAC（管理者権限の確認）が 1 回出る**ので「はい」を押してください。CapsLock の割り当てを新しく設定した場合は、**Windows の再起動後**に有効になります。リモートデスクトップ (RDP) で入って使う PC では、再起動の前に [RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う) の設定を行ってください（`install.ps1` が必要なときに知らせます）。
+(A)・(B) では、AutoHotkey の導入や CapsLock の割り当てが必要なときは **UAC（管理者権限の確認）が 1 回出る**ので「はい」を押してください。CapsLock の割り当てを新しく設定した場合は、**Windows の再起動後**に有効になります。リモートデスクトップ (RDP) で入って使う PC では、再起動の前に [RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う) の設定を行ってください（`install.ps1` が必要なときに知らせます）。
 
 ### (A) AI に依頼する場合
 
@@ -95,7 +96,7 @@ https://github.com/nofukao/Ecaps を設定して
    - その 2 行は、ユーザーが実行を頼んだ場合に限り、エージェントが実行してよい。コマンドを一時 `.ps1` ファイルに書き、管理者として `powershell -NoProfile -ExecutionPolicy Bypass -File <そのファイル>` で実行する（UAC の確認が出る。コードをコマンドラインに直接書かない）。
 5. **更新を頼まれた場合**も、同じ 2 つのコマンドを実行する（新しいリリースがある場合だけ入れ替わる）。
 
-### (B) 自分で行う場合
+### (B) コマンドで行う場合
 
 1. PowerShell を開く（`Win + X` →「ターミナル」。管理者として開く必要はありません）。
 2. 次の 2 行を貼り付けて実行する。1 行目で最新リリースの `install.ps1` を一時フォルダにダウンロードし、2 行目でそれを実行します。`install.ps1` は最新リリースを取得して、`Ecaps.ahk` や README などを設置先 `%LOCALAPPDATA%\Programs\Ecaps` に置きます（これらのファイルは手元に残ります）。
@@ -124,6 +125,35 @@ https://github.com/nofukao/Ecaps を設定して
 | `-Force` | 既に別の内容が入っている `Scancode Map` を、標準値で上書きする |
 | `-PowerShellEmacs` | PowerShell の行編集を Emacs モードにする（[下記](#任意-powershell-を-emacs-編集モードにする)） |
 | `-Source <フォルダ>` | リリースではなく、手元のフォルダから設置する（開発・テスト用） |
+
+### (C) 手作業で行う場合
+
+`install.ps1` を使わずに、同じ構成を手で作る手順です。社内のルールなどで PowerShell のスクリプトを実行できない PC や、設置先を自分で決めたい場合に使います。手順 1・2 は管理者権限が必要で、その PC で初めて入れるときだけ行います。
+
+1. **CapsLock を F13 にする**: ChangeKey などのキー割り当てツールで、CapsLock → F13、ScrollLock → CapsLock を設定する（[標準のキー割り当て](#標準の構成)と同じ値になります）。ツールを使わない場合は、管理者として開いた PowerShell で次を実行する。
+
+   ```powershell
+   Set-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map' -Type Binary -Value ([byte[]](0,0,0,0, 0,0,0,0, 3,0,0,0, 0x64,0,0x3A,0, 0x3A,0,0x46,0, 0,0,0,0))
+   ```
+
+   - 既に別のキー割り当てが入っていると、上書きされます。先に `Get-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map'` で確かめてください（`Property Scancode Map does not exist …` のように、値が無いというエラーになれば未設定です）。
+   - 有効になるのは再起動の後です。再起動は手順 6 でまとめて行います。
+2. **AutoHotkey v2 を入れる**: [公式サイト](https://www.autohotkey.com/) から v2 のインストーラをダウンロードし、**全ユーザー向け**（既定の `C:\Program Files\AutoHotkey`）に入れる。全ユーザー向けに入れると、UIA 版（`AutoHotkey64_UIA.exe`）が作られます。
+3. **リリース版をダウンロードする**: [最新のリリース](https://github.com/nofukao/Ecaps/releases/latest) の「Source code (zip)」をダウンロードして展開する。
+4. **設置する**: 展開したフォルダ（`Ecaps-1.0.3` など）から、`Ecaps.ahk` を設置先のフォルダに置く。`README.md` と `docs` も一緒に置いておくと、手元で読めます。
+   - 設置先は任意ですが、`install.ps1` と同じ `%LOCALAPPDATA%\Programs\Ecaps`（`C:\Users\<ユーザー名>\AppData\Local\Programs\Ecaps`）を勧めます（理由は[標準の構成](#標準の構成)）。
+   - OneDrive など、PC 間で同期されるフォルダは避けてください。1 台で行った変更が、他の PC にも伝わってしまいます。
+5. **自動起動を設定する**: `Win + R` →「`shell:startup`」でスタートアップフォルダを開き、右クリック →「新規作成」→「ショートカット」で、項目の場所に次を入力する。後半は、手順 4 の設置先の実際のパスにします（`%LOCALAPPDATA%` のような環境変数ではなく、実際のパスで書く）。名前は `Ecaps` にします。
+
+   ```
+   "C:\Program Files\AutoHotkey\v2\AutoHotkey64_UIA.exe" "C:\Users\<ユーザー名>\AppData\Local\Programs\Ecaps\Ecaps.ahk"
+   ```
+
+   - 以前に別の場所の Ecaps を自動起動していた場合は、そのショートカットを削除する（二重に起動するため）。
+   - `AutoHotkey64_UIA.exe` が無い場合（AutoHotkey を全ユーザー向けに入れていない場合）は、`AutoHotkey64.exe` を指定します。この場合、管理者権限のウィンドウでは Ecaps が効きません。
+6. **起動する**: 手順 1 を行った場合は、Windows を再起動する（サインインすると Ecaps が起動します）。手順 1 が済んでいる PC では、作ったショートカットをダブルクリックして起動する。
+   - リモートデスクトップで入って使う PC は、再起動の前に [RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う) の設定を行ってください。
+7. **確かめる**: タスクトレイに H アイコンが出て、`CapsLock + f` でカーソルが右へ動けば完了です。入れた版は、`Ecaps.ahk` の冒頭のコメントで分かります。
 
 ### install.ps1 が行うこと
 
@@ -157,7 +187,8 @@ https://github.com/nofukao/Ecaps を設定して
 ### 更新・移行・アンインストール
 
 - **更新**: (A) または (B) と同じ手順です。新しいリリースがあるときだけ入れ替わり、Ecaps も再起動されます。
-- **移行**: 以前の手順で別の場所（OneDrive など）に置いて自動起動していた PC も、(A) または (B) を行うだけで移行できます。古いスタートアップのショートカットは削除され、古い場所の Ecaps は終了して、標準の設置先の Ecaps に切り替わります。古い場所のファイルは削除しないので、不要なら手で消してください。
+  - (C) で入れた場合は、(C) の手順 3・4 で `Ecaps.ahk` を新しい版に置き換え、タスクトレイの H アイコンを右クリック →「Reload Script」を選びます。
+- **移行**: 以前の手順で別の場所（OneDrive など）に置いて自動起動していた PC も、(C) で入れた PC も、(A) または (B) を行うだけで移行できます。古いスタートアップのショートカットは削除され、古い場所の Ecaps は終了して、標準の設置先の Ecaps に切り替わります。古い場所のファイルは削除しないので、不要なら手で消してください。
 - **カスタマイズの注意**: 設置先の `Ecaps.ahk` を直接書き換えても、更新すると上書きされます。キーバインドを変えたい場合は、リポジトリを fork するなどして変更を管理してください。
 - **アンインストール**:
   1. タスクトレイの Ecaps（H アイコン）を右クリック → Exit
@@ -165,15 +196,6 @@ https://github.com/nofukao/Ecaps を設定して
   3. `%LOCALAPPDATA%\Programs\Ecaps` を削除
   4. CapsLock を元に戻す場合は、管理者権限の PowerShell で `Remove-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map'` を実行して再起動（他の割り当てがあれば、それも消えるので注意）
   5. AutoHotkey も不要なら、`winget uninstall --id AutoHotkey.AutoHotkey`
-
-### 手動インストール
-
-`install.ps1` を使わずに設置する場合の手順です（結果は同じ構成になります）。
-
-1. **CapsLock を F13 に**: ChangeKey などで[標準のキー割り当て](#標準の構成)を設定し、再起動する。
-2. **AutoHotkey v2**: [公式サイト](https://www.autohotkey.com/) からダウンロードし、全ユーザー向け（Program Files）にインストールする（UIA 版が作られる）。
-3. **配置**: [Releases](https://github.com/nofukao/Ecaps/releases) の zip（Source code）を展開し、`Ecaps.ahk` などを `%LOCALAPPDATA%\Programs\Ecaps` に置く。
-4. **自動起動**: `shell:startup` に、リンク先が `"C:\Program Files\AutoHotkey\v2\AutoHotkey64_UIA.exe" "%LOCALAPPDATA%\Programs\Ecaps\Ecaps.ahk"` のショートカットを作り、ダブルクリックして起動する。
 
 ### (任意) PowerShell を Emacs 編集モードにする
 
