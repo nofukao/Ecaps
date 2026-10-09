@@ -6,6 +6,8 @@
     Idempotent: running it again changes nothing if everything is already in place,
     and running it after a new release updates to that release.
 
+      0. On a PC that accepts Remote Desktop, check the two settings that keep new RDP
+         sessions in the Japanese layout, and only report them if missing (no change).
       1. (admin, one UAC prompt) Install AutoHotkey v2 via winget if missing, and write
          the standard CapsLock -> F13 / ScrollLock -> CapsLock "Scancode Map" if unset.
       2. Download the latest GitHub release of nofukao/Ecaps (or -Version / -Source)
@@ -73,6 +75,35 @@ function Get-ScancodeState {
     if ($null -eq $cur) { return 'missing' }
     if ([BitConverter]::ToString($cur) -eq [BitConverter]::ToString($StdScancodeMap)) { return 'standard' }
     return 'different'
+}
+
+# ---------------------------------------------------------------- Remote Desktop keyboard layout
+# A new RDP session (after a restart or sign-out) can start with the English layout: the
+# client reports Japanese keyboard subtype 0, which maps to kbd101.dll, and the client's
+# layout is imported as the session default. Only report it; the fix is the user's call.
+$TsKey       = 'HKLM:\SYSTEM\CurrentControlSet\Control\Terminal Server'
+$TsJpn       = "$TsKey\KeyboardType Mapping\JPN"
+$TsPolicyKey = 'HKLM:\SOFTWARE\Policies\Microsoft\Windows NT\Terminal Services'
+
+function Get-RegValue([string]$Key, [string]$Name) {
+    try { return (Get-ItemProperty $Key -Name $Name -ErrorAction Stop).$Name } catch { return $null }
+}
+
+function Test-RdpKeyboard {
+    Add-Type -AssemblyName System.Windows.Forms
+    $inRdp = [System.Windows.Forms.SystemInformation]::TerminalServerSession
+    $deny  = Get-RegValue $TsPolicyKey 'fDenyTSConnections'
+    if ($null -eq $deny) { $deny = Get-RegValue $TsKey 'fDenyTSConnections' }
+    if (-not $inRdp -and $deny -ne 0) { return }    # this PC does not accept Remote Desktop
+
+    if ((Get-RegValue $TsJpn '00000000') -eq 'kbd106.dll' -and (Get-RegValue $KbdKey 'IgnoreRemoteKeyboardLayout') -eq 1) {
+        Say 'OK' 'Remote Desktop: new sessions keep the Japanese keyboard layout.'
+        return
+    }
+    Say 'TODO' ('Remote Desktop: a new RDP session (after a restart or sign-out) may start with the English layout. ' +
+        'Run these in an elevated PowerShell before you restart or sign out (README: troubleshooting):' +
+        [Environment]::NewLine + "Set-ItemProperty -Path '$TsJpn' -Name '00000000' -Value 'kbd106.dll'" +
+        [Environment]::NewLine + "New-ItemProperty -Path '$KbdKey' -Name 'IgnoreRemoteKeyboardLayout' -PropertyType DWord -Value 1 -Force")
 }
 
 function Invoke-AdminTasks {
@@ -334,6 +365,7 @@ function Set-PowerShellEmacs {
 # ---------------------------------------------------------------- main
 Write-Host "Ecaps installer -> $InstallDir" -ForegroundColor White
 try {
+    Test-RdpKeyboard    # first, so that its TODO is listed before "Restart Windows"
     Invoke-AdminTasks
     $sc = Get-ScancodeState
     if ($sc -eq 'standard') { Say 'OK' 'CapsLock->F13 / ScrollLock->CapsLock (Scancode Map) is set.' }

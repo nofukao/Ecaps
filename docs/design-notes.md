@@ -260,7 +260,7 @@ VSCode はエディタもターミナルも同じ `Code.exe` のウィンドウ�
 
 新規ホットキーを足す際、IME や IME 風の状態切替を含むものは **RDP 配下でも動くか**を別途検討する必要がある。
 
-**RDP セッションが英語配列で始まる問題**（Windows 側の現象）: キーボード配列は RDP のログオン時に、接続元が申告するキーボードの種類で決まる。接続元が日本語キーボードのサブタイプ 0 を申告すると、接続先の `HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\KeyboardType Mapping\JPN` の `00000000`（既定 `kbd101.dll`、英語配列）が使われる。また接続先が接続元の配列を取り込み、`04090411`（日本語・英語キーボード）がセッションの既定になる。接続先で `00000000`=`kbd106.dll` と `Keyboard Layout\IgnoreRemoteKeyboardLayout`=1 を設定して直した（README「困ったときは」）。再接続ではなくサインアウト→ログオンで反映。
+**RDP セッションが英語配列で始まる問題**（Windows 側の現象）: キーボード配列は RDP のログオン時に、接続元が申告するキーボードの種類で決まる。接続元が日本語キーボードのサブタイプ 0 を申告すると、接続先の `HKLM\SYSTEM\CurrentControlSet\Control\Terminal Server\KeyboardType Mapping\JPN` の `00000000`（既定 `kbd101.dll`、英語配列）が使われる。また接続先が接続元の配列を取り込み、`04090411`（日本語・英語キーボード）がセッションの既定になる。接続先で `00000000`=`kbd106.dll` と `Keyboard Layout\IgnoreRemoteKeyboardLayout`=1 を設定して直した（README「困ったときは」）。再接続ではなくサインアウト→ログオンで反映。インストールに伴う再起動で表に出やすいので、`install.ps1` が未設定を知らせる（8 章）。
 
 ---
 
@@ -348,5 +348,10 @@ python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じな
   - 管理者権限の処理（winget と Scancode Map の書き込み）も、一時 .ps1 に書き出して `Start-Process powershell -Verb RunAs ... -File` で実行する。
 - **UIA 版インスタンスの終了**: 通常権限のプロセスからは UIA 版 AutoHotkey のウィンドウにメッセージを送れない（UIPI）ため、UIA 版 AutoHotkey で小さな終了用スクリプトを起動し、そこから `WM_COMMAND 65307`（トレイの Exit）を送る。UIA 版は CreateProcess では起動できないので `Start-Process`（ShellExecute）で起動する。
 - **Scancode Map の判定**: 標準値と完全一致なら OK。未設定なら書き込む。別の値が入っていれば、ユーザーの他の割り当てを壊さないよう `-Force` が無い限り上書きしない。値を消しても書き込んでも、反映は再起動後（それまでは起動時の割り当てが有効なまま）。
+- **RDP の英語配列は知らせるだけ**: 新規インストールは再起動を伴うので、RDP で入って使う PC では、次のログオンで 4 章の英語配列が起きやすい（2026-10-08 にこの順で起きた）。`Test-RdpKeyboard` が 2 つの設定（`KeyboardType Mapping\JPN\00000000`=`kbd106.dll`、`IgnoreRemoteKeyboardLayout`=1）を確かめ、未設定なら設定コマンドを `[TODO]` で示す。
+  - 設定そのものは書き込まない。キー配列に関わるシステム設定なので、ユーザーの判断にした。
+  - 対象は「RDP セッションで実行中（`SystemInformation.TerminalServerSession` = SM_REMOTESESSION）」または「リモートデスクトップが有効（`fDenyTSConnections`=0。ポリシー側の値を優先）」の PC。`$env:SESSIONNAME` はログオン時の値のまま変わらないので使わない。
+  - 接続元が正しいサブタイプを申告する組み合わせでは英語配列にならないので、誤検知になる。それでも 2 つの設定は日本語 106/109 で使う限り害が無いので、設定してもらえば消える `[TODO]` で良しとした。
+  - 「Action needed」で「Restart Windows」より前に並ぶよう、最初に実行する。
 - **テスト**: リリースが無くても `-Source <フォルダ>` で手元のファイルから設置して確かめられる。何度実行しても同じ状態になること（2 回目はすべて `[OK]`）も確認する。
 
