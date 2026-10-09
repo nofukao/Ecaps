@@ -10,4 +10,9 @@
 - 構文チェックは `"C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe" /ErrorStdOut /validate Ecaps.ahk`。
 - コミットメッセージは日本語で、理由（なぜ）を書く。
 - インストーラ `install.ps1` を変えたら、README の「インストール」節（オプション表・AI エージェント向け手順）も合わせて直す。`install.ps1` は ASCII のみで書く（PowerShell 5.1 は BOM 無しを ANSI で読むため）。PowerShell のコマンドラインにコードや URL を載せない（`powershell -c "... irm <URL>"`、`irm | iex`、`-EncodedCommand`）。Microsoft Defender が Trojan:Win32/Commando として遮断する。ダウンロードはファイルへ、実行は `-File` で（design-notes 8 章）。
-- リリース手順: AutoHotkey の最新安定版（`winget show --id AutoHotkey.AutoHotkey`）を確認し、ポータブル版 zip を展開して `ECAPS_AHK_EXE=<その AutoHotkey64.exe>` で golden / e2e テストを流す（README の「動作確認」の版も更新）→ golden / e2e テスト合格 → main を push → `git tag vX.Y.Z` → `git push origin vX.Y.Z` → GitHub でそのタグからリリースを作成（Web 画面、または gh の `gh release create vX.Y.Z --generate-notes`）。各 PC は `install.ps1` で最新リリースを取得するので、**リリースを作るまで他の PC には配布されない**。
+- リリース手順: 各 PC は、最新リリースに添付した `install.ps1` で最新リリースの Ecaps を取得するので、**install.ps1 も Ecaps.ahk も、リリースを作るまで他の PC には配布されない**（例外: 旧手順の URL で `main` の install.ps1 を使う人には、main への push で届く）。
+  1. AutoHotkey の最新安定版（`winget show --id AutoHotkey.AutoHotkey`）を確認し、ポータブル版 zip を展開して `ECAPS_AHK_EXE=<その AutoHotkey64.exe>` で golden / e2e テストを流す（README の「動作確認」の版も更新）。
+  2. golden / e2e テストに合格する。
+  3. main を push → `git tag vX.Y.Z` → `git push origin vX.Y.Z`。
+  4. `gh release create vX.Y.Z --generate-notes install.ps1` でリリースを作る（Web 画面で作る場合も install.ps1 を添付する）。**install.ps1 を添付し忘れると、全 PC のインストール・更新が 404 で止まる。**
+  5. `curl.exe -fsSIL https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1` が通ることと、README の 2 行をこの PC で実行して新しい版に更新されることを確かめる。

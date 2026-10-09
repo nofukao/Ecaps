@@ -342,6 +342,11 @@ python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じな
 
 利用者向けの手順は README の「インストール」。ここでは保守時に知っておくべき判断だけを書く。
 
+- **配布元はリリースの添付ファイル**: README の 1 行目は `https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1`（最新リリースに添付した install.ps1）を取得する。以前は `main` の raw URL だったため、install.ps1 の変更は main に push した時点で全 PC に届き、「リリースを作るまで配布されない」が Ecaps.ahk にしか当てはまらなかった（2026-10-09 に変更）。
+  - リリースを作るときは install.ps1 の添付が必須（CLAUDE.md のリリース手順）。無いと `latest/download` が 404 になり、全 PC のインストールと更新が止まる。
+  - main の install.ps1 は残してあるので、旧 URL の手順も動く（その人には main への push で届く）。
+  - リリースの zip の中の install.ps1 は、設置先にコピーされるだけで実行されない。
+  - 「zip を先にダウンロードし、中の install.ps1 を実行する」形は採らなかった。Source code zip には最新版を指す固定 URL が無く（URL にタグが入る）、展開したフォルダ名も `Ecaps-1.0.3` のように版ごとに変わるので、手順を固定の 2 行にできない。また、展開したフォルダから `-Source` で実行すると `VERSION.txt` が `local` になり、版が残らない。AutoHotkey の導入（winget）にはどのみちネットが必要なので、オフラインで入れられる利点も小さい。
 - **ASCII のみで書く**: Windows PowerShell 5.1 は BOM 無しの .ps1 を ANSI（cp932）で読むため、日本語を含めると壊れることがある。出力メッセージも英語。
 - **コードや URL を PowerShell のコマンドラインに載せない**: `powershell -ExecutionPolicy Bypass -c "& ([scriptblock]::Create((irm <URL>)))"` は、Microsoft Defender に **Trojan:Win32/Commando.A!ml** として検知され、プロセスの起動を止められた（2026-10-08、v1.0.0 の README に載せた 1 行）。ファイルの中身ではなく、コマンドラインの形で判定される。`-EncodedCommand` も同類なので避ける。
   - 配布手順は「`curl.exe` で一時フォルダへダウンロード → `powershell -File` で実行」の 2 段階にする。

@@ -52,7 +52,7 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 
 ## インストール
 
-インストールと更新は、リポジトリ直下の **`install.ps1`** が行います。AI に頼む場合も自分で行う場合も同じ `install.ps1` が実行されるので、どの PC でも同じ構成になります。
+インストールと更新は、[リリース](https://github.com/nofukao/Ecaps/releases)に添付した **`install.ps1`** が行います。AI に頼む場合も自分で行う場合も同じ `install.ps1` が実行されるので、どの PC でも同じ構成になります。
 
 | 方法 | あなたがすること |
 |---|---|
@@ -79,10 +79,10 @@ https://github.com/nofukao/Ecaps を設定して
    - AutoHotkey v2 の導入（winget）と、CapsLock のキー割り当て（レジストリ `HKLM\SYSTEM\CurrentControlSet\Control\Keyboard Layout` の `Scancode Map`）を、必要な場合に自動で行うこと。
    - その場合は **UAC の確認が 1 回出るので、ユーザーが「はい」を押す必要がある**こと。
    - キー割り当てを新しく設定した場合は、Windows の再起動が必要なこと。
-2. **実行する**: `install.ps1` をファイルとしてダウンロードしてから、`powershell -File` で実行する。2 つは**別々のコマンドとして**実行する（使うシェルに合わせて書き換えてよいが、この形は崩さない）。UAC の応答を待つ間ブロックするので、タイムアウトは長め（数分）にする。
+2. **実行する**: 最新リリースに添付された `install.ps1` をファイルとしてダウンロードしてから、`powershell -File` で実行する。2 つは**別々のコマンドとして**実行する（使うシェルに合わせて書き換えてよいが、この形は崩さない）。UAC の応答を待つ間ブロックするので、タイムアウトは長め（数分）にする。
 
    ```
-   curl.exe -fsSL -o "%TEMP%\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+   curl.exe -fsSL -o "%TEMP%\ecaps-install.ps1" https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\ecaps-install.ps1"
    ```
 
@@ -98,10 +98,10 @@ https://github.com/nofukao/Ecaps を設定して
 ### (B) 自分で行う場合
 
 1. PowerShell を開く（`Win + X` →「ターミナル」。管理者として開く必要はありません）。
-2. 次の 2 行を貼り付けて実行する（1 行目で `install.ps1` を一時フォルダにダウンロードし、2 行目でそれを実行します）。
+2. 次の 2 行を貼り付けて実行する。1 行目で最新リリースの `install.ps1` を一時フォルダにダウンロードし、2 行目でそれを実行します。`install.ps1` は最新リリースを取得して、`Ecaps.ahk` や README などを設置先 `%LOCALAPPDATA%\Programs\Ecaps` に置きます（これらのファイルは手元に残ります）。
 
    ```powershell
-   curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+   curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1"
    ```
 
@@ -143,7 +143,7 @@ https://github.com/nofukao/Ecaps を設定して
 | 項目 | 標準値 | 理由 |
 |---|---|---|
 | 設置先 | `%LOCALAPPDATA%\Programs\Ecaps` | Windows のユーザー単位アプリの慣例。管理者権限が不要で、OneDrive 同期の対象外（PC ごとに独立して更新される） |
-| 配布 | [GitHub Releases](https://github.com/nofukao/Ecaps/releases) の zip | Git が不要。リリースした（テスト済みの）版だけが入る |
+| 配布 | [GitHub Releases](https://github.com/nofukao/Ecaps/releases) の zip（`install.ps1` もリリースに添付） | Git が不要。リリースした（テスト済みの）版だけが入る |
 | AutoHotkey | v2（winget の `AutoHotkey.AutoHotkey`）、全ユーザー向けに Program Files へ | UIA 版の実行ファイルが作られる |
 | 自動起動 | スタートアップの `Ecaps.lnk` → `AutoHotkey64_UIA.exe "…\Ecaps.ahk"` | UIA 版は、管理者権限のウィンドウ（管理者ターミナル、タスクマネージャー等）でも効く |
 | キー割り当て | CapsLock → F13、ScrollLock → CapsLock | 下記 |

@@ -21,12 +21,14 @@
     files as the ANSI code page.
     See README.md ("Install") for the human/AI-agent instructions.
 
+    Get it from the latest release (attached as an asset), not from the main branch,
+    so that an installer reaches other PCs only when it is released.
     Download it to a file and run it with -File. Do NOT pass the download URL on a
     PowerShell command line ("powershell -c ... irm <url>") or pipe it to iex:
     Microsoft Defender blocks such command lines as Trojan:Win32/Commando.
 
 .EXAMPLE
-    curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://raw.githubusercontent.com/nofukao/Ecaps/main/install.ps1
+    curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1
     powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1"
 #>
 [CmdletBinding()]
