@@ -1,6 +1,10 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Ecaps.ahk  ―  Emacs風キーバインド on Windows  (AutoHotkey v2)
-;                                   2022/09 - / nofukao
+;
+;   バージョン : v1.0.3  (リリース日 2026-10-09)
+;   リポジトリ : https://github.com/nofukao/Ecaps
+;   (リリースのたびに、この 2 行と冒頭全体を見直す: CLAUDE.md のリリース手順)
+;
 ;   日本語109キーボードを前提に、CapsLock を物理的に F13 (scancode 0x0064)
 ;   に割り当てた上で、F13 + key の組合せで Unix シェル / Emacs 風の
 ;   キーバインドを提供する。
@@ -8,22 +12,12 @@
 ;   本物の Ctrl は極力使わないので、Windows 既定のショートカット
 ;   (Ctrl+S 等) は従来通り動作する。
 ;
-;   インストール / 更新:
-;     README.md の「インストール」を参照 (install.ps1 で自動設置)。
-;       - 設置先   : %LOCALAPPDATA%\Programs\Ecaps
-;       - 自動起動 : スタートアップの Ecaps.lnk (AutoHotkey64_UIA.exe で起動)
-;       - CapsLock : レジストリ Scancode Map で F13 (scancode 0x0064) に割当て
-;
-;   (任意) PowerShell を Emacs 編集モードにする (install.ps1 -PowerShellEmacs でも可):
-;     PowerShell(PS)をEmacs編集モードにし、bashと同じ挙動にする。
-;     1. PSターミナルを開く。(管理者権限は不要)
-;     2. PSプロンプトで以下の3行について、行頭"> "の次からを切り取って、順に貼り付けて実行する。
-;        > if (!(Test-Path $PROFILE)) { New-Item -ItemType File -Path $PROFILE -Force }
-;        > Add-Content -Path $PROFILE -Value 'Set-PSReadLineOption -EditMode Emacs'
-;        > Set-ExecutionPolicy -Scope CurrentUser RemoteSigned -Force
-;       (最初の2行はプロファイルの追記。最後の1行はスクリプトの実行を許可。)
-;     3. PSターミナルを再起動する。
-;        これで、Ctrl+U(行頭まで削除)、Ctrl+K(行末まで削除)等が動作するようになる。
+;   インストール・更新・キーバインド一覧: README.md (上記リポジトリ)
+;     - 標準の設置先 : %LOCALAPPDATA%\Programs\Ecaps (install.ps1 で自動設置)
+;     - 自動起動     : スタートアップの Ecaps.lnk (AutoHotkey64_UIA.exe で起動)
+;     - CapsLock     : レジストリ Scancode Map で F13 (scancode 0x0064) に割当て
+;   (任意) PowerShell を Emacs 編集モードにする手順も README.md にある。
+;   設計判断・AHK v2 の落とし穴: docs/design-notes.md
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 
