@@ -5,6 +5,8 @@
 .DESCRIPTION
     Idempotent: running it again changes nothing if everything is already in place,
     and running it after a new release updates to that release.
+    It stops without changing anything when run inside an MSIX app package (e.g. by an
+    AI agent in the Claude desktop app), because Windows would virtualize what it writes.
 
       0. On a PC that accepts Remote Desktop, check the two settings that keep new RDP
          sessions in the Japanese layout, and only report them if missing (no change).
@@ -15,7 +17,9 @@
       3. Create the startup shortcut "Ecaps.lnk" (UI Access build of AutoHotkey) and
          remove other startup shortcuts that point to an Ecaps.ahk (duplicates).
       4. Stop Ecaps instances running from other paths and (re)start the installed one.
-      5. Optionally (-PowerShellEmacs) set PSReadLine to Emacs edit mode.
+      5. Check the two Microsoft IME settings for F13+j mixed Japanese/English input;
+         set them only with -ImeMixedInput, otherwise report them if missing.
+      6. Optionally (-PowerShellEmacs) set PSReadLine to Emacs edit mode.
 
     This file is kept ASCII-only on purpose: Windows PowerShell 5.1 reads BOM-less
     files as the ANSI code page.
@@ -38,7 +42,8 @@ param(
     [switch]$NoUIA,            # start with AutoHotkey64.exe instead of the UI Access build
     [switch]$NoAdmin,          # never elevate; only report what needs admin rights
     [switch]$Force,            # overwrite a non-standard existing Scancode Map
-    [switch]$PowerShellEmacs   # also set PSReadLine EditMode Emacs in the PowerShell profile
+    [switch]$PowerShellEmacs,  # also set PSReadLine EditMode Emacs in the PowerShell profile
+    [switch]$ImeMixedInput     # also set the Microsoft IME up for F13+j mixed Japanese/English input
 )
 
 $ErrorActionPreference = 'Stop'
@@ -58,6 +63,37 @@ function Say([string]$Status, [string]$Message) {
     $color = @{ 'OK' = 'Green'; 'CHANGED' = 'Cyan'; 'TODO' = 'Yellow'; 'ERROR' = 'Red' }[$Status]
     Write-Host ('[{0,-7}] {1}' -f $Status, $Message) -ForegroundColor $color
     if ($Status -in 'TODO', 'ERROR') { $script:Todo.Add($Message) }
+}
+
+# ---------------------------------------------------------------- MSIX app package
+# An AI agent in a packaged (MSIX) desktop app, such as the Claude desktop app, runs its shell
+# and this script inside the app's package (child processes inherit it). Windows then redirects
+# new folders directly under %LOCALAPPDATA% (such as Programs) and writes to HKCU to a private
+# place of that app: everything looks installed from inside, but Ecaps is missing after a restart.
+if (-not ('EcapsInstall.Pkg' -as [type])) {
+Add-Type -Namespace EcapsInstall -Name Pkg -MemberDefinition @'
+    [System.Runtime.InteropServices.DllImport("kernel32.dll", CharSet = System.Runtime.InteropServices.CharSet.Unicode)]
+    public static extern int GetCurrentPackageFullName(ref int length, System.Text.StringBuilder name);
+'@
+}
+
+# Full name of the app package this process runs in, or $null outside a package
+function Get-PackageName {
+    $len = 0
+    if ([EcapsInstall.Pkg]::GetCurrentPackageFullName([ref]$len, $null) -eq 15700) { return $null }   # APPMODEL_ERROR_NO_PACKAGE
+    $name = New-Object System.Text.StringBuilder ([Math]::Max($len, 1))
+    [void][EcapsInstall.Pkg]::GetCurrentPackageFullName([ref]$len, $name)
+    if ($name.Length -gt 0) { return $name.ToString() }
+    return '(unknown)'
+}
+
+# A run inside such an app by an older install.ps1 left a copy in the app's private folder.
+# Only that app sees it (as %LOCALAPPDATA%\Programs\Ecaps); Windows never runs it.
+function Test-VirtualizedCopy {
+    foreach ($d in @(Get-Item -Path (Join-Path $env:LOCALAPPDATA 'Packages\*\LocalCache\Local\Programs\Ecaps') -ErrorAction SilentlyContinue)) {
+        Say 'TODO' ("Found an unused copy of Ecaps that an earlier run inside an app package left in that app's private folder. " +
+            "Delete it: Remove-Item -Recurse -Force '$($d.FullName)'")
+    }
 }
 
 # ---------------------------------------------------------------- AutoHotkey / Scancode Map
@@ -364,9 +400,72 @@ function Set-PowerShellEmacs {
     }
 }
 
+# ---------------------------------------------------------------- IME (F13+j mixed input)
+# F13+j turns the IME on in half-width alphanumeric mode. Typing Japanese and English mixed
+# from there needs two settings of the previous version of Microsoft IME (README: IME):
+#   - "Use previous version of Microsoft IME"   : NoTsf3Override2 = 1
+#   - Advanced > mixed input tab, first item     : bit 0x400 of option1 ("convert alphabet
+#     as romaji to kana-kanji, mainly English")
+# Neither is a documented setting, so write them only when they look as expected.
+$ImeTsfKey  = 'HKCU:\Software\Microsoft\Input\TSF\Tsf3Override\{03b5835f-f03c-411b-9ce2-aa23e1171e36}'
+$ImeKey     = 'HKCU:\Software\Microsoft\IME\15.0\IMEJP\MSIME'
+$ImeRomaBit = 0x400
+
+# @{ Kind; Value } of a registry value, or $null if it does not exist
+function Get-RegEntry([string]$Key, [string]$Name) {
+    $k = Get-Item -LiteralPath $Key -ErrorAction SilentlyContinue
+    if (-not $k -or $k.GetValueNames() -notcontains $Name) { return $null }
+    return @{ Kind = $k.GetValueKind($Name); Value = $k.GetValue($Name) }
+}
+
+function Set-ImeMixedInput {
+    $tsf   = Get-RegEntry $ImeTsfKey 'NoTsf3Override2'
+    $opt   = Get-RegEntry $ImeKey 'option1'
+    $tsfOk = $tsf -and $tsf.Kind -eq 'DWord' -and $tsf.Value -eq 1
+    $optOk = $opt -and $opt.Kind -eq 'DWord' -and ($opt.Value -band $ImeRomaBit)
+    if ($tsfOk -and $optOk) {
+        Say 'OK' 'IME: set up for F13+j mixed Japanese/English input.'
+        return
+    }
+    if (-not $ImeMixedInput) {
+        Say 'TODO' ('IME: not set up for F13+j mixed Japanese/English input (two Microsoft IME settings). ' +
+            'Run this script again with -ImeMixedInput, or set them by hand (README: Japanese input (IME)).')
+        return
+    }
+
+    $changed = $false
+    if (-not $tsfOk) {
+        if ($tsf -and $tsf.Kind -ne 'DWord') {
+            Say 'TODO' "IME: NoTsf3Override2 in $ImeTsfKey is not a DWORD; left unchanged. Turn on 'Use previous version of Microsoft IME' by hand (README: Japanese input (IME))."
+        } else {
+            if (-not (Test-Path -LiteralPath $ImeTsfKey)) { New-Item -Path $ImeTsfKey -Force | Out-Null }
+            New-ItemProperty -LiteralPath $ImeTsfKey -Name 'NoTsf3Override2' -PropertyType DWord -Value 1 -Force | Out-Null
+            Say 'CHANGED' 'IME: turned on "Use previous version of Microsoft IME".'
+            $changed = $true
+        }
+    }
+    if (-not $optOk) {
+        if (-not $opt -or $opt.Kind -ne 'DWord') {
+            # The IME has not saved its settings yet (or the format changed): do not guess the other bits.
+            Say 'TODO' "IME: option1 in $ImeKey is missing or not a DWORD; left unchanged. Check the first item of the mixed input tab in the IME's advanced settings by hand (README: Japanese input (IME))."
+        } else {
+            Set-ItemProperty -LiteralPath $ImeKey -Name 'option1' -Type DWord -Value ([int]$opt.Value -bor $ImeRomaBit)
+            Say 'CHANGED' 'IME: turned on "convert alphabet as romaji to kana-kanji" (mixed input tab).'
+            $changed = $true
+        }
+    }
+    if ($changed) { Say 'TODO' 'Sign out and sign in again (or restart Windows) to apply the IME settings.' }
+}
+
 # ---------------------------------------------------------------- main
 Write-Host "Ecaps installer -> $InstallDir" -ForegroundColor White
+$package = Get-PackageName
 try {
+    if ($package) {
+        throw ("This PowerShell runs inside the app package $package (for example, an AI agent in the Claude desktop app). " +
+            "Windows would redirect the files and settings written here to that app's private folder, and Ecaps would be missing after a restart. " +
+            'Nothing was changed. Run the two commands in your own terminal instead (Win+X > Terminal; README: Install).')
+    }
     Test-RdpKeyboard    # first, so that its TODO is listed before "Restart Windows"
     Invoke-AdminTasks
     $sc = Get-ScancodeState
@@ -378,16 +477,19 @@ try {
     Say 'OK' "AutoHotkey v2 found in $ahkDir."
 
     $changed = Install-Files
+    Test-VirtualizedCopy
     $exe = Get-AhkExe $ahkDir
     Set-StartupShortcut $exe
     Restart-Ecaps $exe $changed
+    Set-ImeMixedInput
     if ($PowerShellEmacs) { Set-PowerShellEmacs }
 } catch {
     Say 'ERROR' $_.Exception.Message
 }
 
 Write-Host ''
-Write-Host ("Installed version: {0}" -f (Get-InstalledVersion)) -ForegroundColor White
+# Inside a package, a copy that only the package sees could be reported as installed.
+if (-not $package) { Write-Host ("Installed version: {0}" -f (Get-InstalledVersion)) -ForegroundColor White }
 if ($script:Todo.Count -eq 0) {
     Write-Host 'Done. Ecaps is installed and running.' -ForegroundColor Green
 } else {

@@ -57,7 +57,7 @@ Windows 上で Emacs / Unix シェル風のキーバインドを実現する Aut
 | 方法 | あなたがすること |
 |---|---|
 | **(A) AI に依頼する** | AI エージェント（Claude Code など）に「https://github.com/nofukao/Ecaps を設定して」と頼む |
-| **(B) コマンドで行う** | PowerShell で 2 行のコマンドを実行する |
+| **(B) コマンドで行う** | PowerShell（またはコマンドプロンプト）で 2 行のコマンドを実行する |
 | **(C) 手作業で行う** | キーの割り当て、AutoHotkey の導入、設置、自動起動を自分で行う（`install.ps1` を使わない） |
 
 (A)・(B) では、AutoHotkey の導入や CapsLock の割り当てが必要なときは **UAC（管理者権限の確認）が 1 回出る**ので「はい」を押してください。CapsLock の割り当てを新しく設定した場合は、**Windows の再起動後**に有効になります。リモートデスクトップ (RDP) で入って使う PC では、再起動の前に [RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う) の設定を行ってください（`install.ps1` が必要なときに知らせます）。
@@ -88,12 +88,14 @@ https://github.com/nofukao/Ecaps を設定して
    ```
 
    - **ダウンロード URL を PowerShell のコマンドラインに直接書かない**（`powershell -c "... irm <URL> ..."` や `irm <URL> | iex` の形）。Microsoft Defender がマルウェア（Trojan:Win32/Commando）として遮断する。
-   - オプションは、ユーザーが明示した場合だけ付ける。特に `-Force`（既存のキー割り当ての上書き）と `-PowerShellEmacs`（PowerShell プロファイルの変更）は、ユーザーの指示なしに付けない。
+   - オプションは、ユーザーが明示した場合だけ付ける。特に `-Force`（既存のキー割り当ての上書き）、`-PowerShellEmacs`（PowerShell プロファイルの変更）、`-ImeMixedInput`（IME の設定の変更）は、ユーザーの指示なしに付けない。
    - `install.ps1` が行わない変更（レジストリの手動編集、他のソフトの導入・削除など）は行わない（例外は手順 4 の RDP の設定だけ）。
 3. **出力を確認する**: 各行の `[OK]` / `[CHANGED]` / `[TODO]` / `[ERROR]` と、最後の `Done.` または `Action needed:` を読む。
 4. **完了条件**: `Installed version:` に版（例 `v1.0.0`）が表示され、`[ERROR]` が無いこと。`Action needed:` があれば、その内容（再起動が必要、既存のキー割り当てが標準と違う、UAC が拒否された、など）をユーザーにそのまま伝える。`[ERROR]` があれば、その行を示して対応をユーザーと相談する。
+   - `[ERROR] This PowerShell runs inside the app package …` が出たら、エージェントが **MSIX パッケージのアプリ**（Claude デスクトップアプリなど）の中で動いている。そこからでは、書き込んだファイルや設定を Windows がそのアプリ専用の場所へ振り替えてしまい、再起動後に Ecaps が起動しない（[詳細](#ai-に設定してもらったのに再起動すると-script-file-not-found-になる)）。`install.ps1` は何も変更せずに止まっている。エージェントは別の方法で実行しようとせず、[(B)](#b-コマンドで行う場合) の 2 行をユーザーに示して、ユーザー自身が開いたターミナルで実行してもらう（PowerShell 用とコマンドプロンプト用で形が違うので、開くものを指定するか両方を示す）。実行後に出力を貼ってもらい、この手順 3・4 のとおり確認する。
    - `Remote Desktop:` の `[TODO]` が出たら、表示された 2 行のコマンドと、その理由（再起動やサインアウトの後、RDP のセッションが英語配列で始まることがある。[RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う)）をユーザーに伝える。再起動が必要な場合は、再起動の前に行うよう伝える。
    - その 2 行は、ユーザーが実行を頼んだ場合に限り、エージェントが実行してよい。コマンドを一時 `.ps1` ファイルに書き、管理者として `powershell -NoProfile -ExecutionPolicy Bypass -File <そのファイル>` で実行する（UAC の確認が出る。コードをコマンドラインに直接書かない）。
+   - `IME:` の `[TODO]` が出たら、`F13 + j` で日本語と英語を混在入力するための IME の設定（[和英混在入力の設定](#和英混在入力の設定)）が無いことを伝える。ユーザーが設定を望んだら、2 行目の末尾に `-ImeMixedInput` を付けて実行し直す（反映にはサインアウトが必要）。
 5. **更新を頼まれた場合**も、同じ 2 つのコマンドを実行する（新しいリリースがある場合だけ入れ替わる）。
 
 ### (B) コマンドで行う場合
@@ -104,6 +106,13 @@ https://github.com/nofukao/Ecaps を設定して
    ```powershell
    curl.exe -fsSL -o "$env:TEMP\ecaps-install.ps1" https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1
    powershell -NoProfile -ExecutionPolicy Bypass -File "$env:TEMP\ecaps-install.ps1"
+   ```
+
+   コマンドプロンプト（`cmd`）で実行する場合は、`$env:TEMP` を `%TEMP%` に変えた次の 2 行にします（上の PowerShell 用の形はコマンドプロンプトでは失敗します）。
+
+   ```bat
+   curl.exe -fsSL -o "%TEMP%\ecaps-install.ps1" https://github.com/nofukao/Ecaps/releases/latest/download/install.ps1
+   powershell -NoProfile -ExecutionPolicy Bypass -File "%TEMP%\ecaps-install.ps1"
    ```
 
 3. UAC の確認が出たら「はい」を押す（AutoHotkey の導入や CapsLock の割り当てが必要な場合だけ出ます）。
@@ -124,6 +133,7 @@ https://github.com/nofukao/Ecaps を設定して
 | `-NoAdmin` | 管理者権限の操作をせず、必要なコマンドを表示するだけにする |
 | `-Force` | 既に別の内容が入っている `Scancode Map` を、標準値で上書きする |
 | `-PowerShellEmacs` | PowerShell の行編集を Emacs モードにする（[下記](#任意-powershell-を-emacs-編集モードにする)） |
+| `-ImeMixedInput` | `F13 + j` で日本語と英語を混在入力するための IME の設定をする（[和英混在入力の設定](#和英混在入力の設定)） |
 | `-Source <フォルダ>` | リリースではなく、手元のフォルダから設置する（開発・テスト用） |
 
 ### (C) 手作業で行う場合
@@ -157,14 +167,17 @@ https://github.com/nofukao/Ecaps を設定して
 
 ### install.ps1 が行うこと
 
+MSIX パッケージのアプリ（Claude デスクトップアプリなど）の中から実行された場合は、何も変更せずに `[ERROR]` で止まります（[理由](#ai-に設定してもらったのに再起動すると-script-file-not-found-になる)）。それ以外では次を行います。
+
 | # | 内容 | 既に済んでいれば |
 |---|---|---|
 | 1 | リモートデスクトップで接続される PC なら、RDP のセッションを日本語配列で始めるための 2 つの設定（[RDP で接続すると英語配列になる](#rdp-で接続すると英語配列になる変換キーが効かない記号の位置が違う)）を確かめる。未設定なら、設定コマンドを `[TODO]` で示す（設定は変えない） | `[OK]` を表示する。リモートデスクトップを使わない PC では何も表示しない |
 | 2 | AutoHotkey v2 が無ければ winget で導入する（管理者権限） | 何もしない |
 | 3 | CapsLock の割り当て（[標準値](#標準の構成)）が未設定なら書き込む（管理者権限・要再起動） | 何もしない。別の値が入っていれば上書きせず報告する |
-| 4 | GitHub の**最新リリース**を設置先 `%LOCALAPPDATA%\Programs\Ecaps` に置き、版を `VERSION.txt` に記録する | 同じ版なら何もしない |
+| 4 | GitHub の**最新リリース**を設置先 `%LOCALAPPDATA%\Programs\Ecaps` に置き、版を `VERSION.txt` に記録する。以前にアプリのパッケージの中から実行して残った、使われないコピー（[下記](#ai-に設定してもらったのに再起動すると-script-file-not-found-になる)）があれば、削除のコマンドを `[TODO]` で示す | 同じ版なら何もしない |
 | 5 | スタートアップに `Ecaps.lnk` を作る（UIA 版 AutoHotkey で起動）。Ecaps.ahk を指す古いショートカットは、二重起動の原因になるので削除する | 何もしない |
 | 6 | 別の場所から起動中の Ecaps を終了し、設置先の Ecaps を起動する（更新時は再起動する） | 何もしない |
+| 7 | `F13 + j` 用の IME の設定（[和英混在入力の設定](#和英混在入力の設定)）を確かめる。`-ImeMixedInput` を付けたときだけ設定する（サインアウト後に反映）。付けないときは、未設定なら `[TODO]` で知らせる | `[OK]` を表示する |
 
 2 と 3 の管理者権限の操作は、必要なものだけを 1 つの昇格プロセスにまとめて行うので、UAC の確認は最大 1 回です。
 
@@ -196,6 +209,7 @@ https://github.com/nofukao/Ecaps を設定して
   3. `%LOCALAPPDATA%\Programs\Ecaps` を削除
   4. CapsLock を元に戻す場合は、管理者権限の PowerShell で `Remove-ItemProperty 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' -Name 'Scancode Map'` を実行して再起動（他の割り当てがあれば、それも消えるので注意）
   5. AutoHotkey も不要なら、`winget uninstall --id AutoHotkey.AutoHotkey`
+  6. IME の設定（[和英混在入力の設定](#和英混在入力の設定)）も元に戻す場合は、その節の「戻し方」のとおりにする
 
 ### (任意) PowerShell を Emacs 編集モードにする
 
@@ -311,7 +325,20 @@ Windows の IME ステータスを **直接制御** します。「半角/全角
 | `F13 + j` / `Ctrl + Alt + j` | 日本語入力 **ON** | IME ON ＋ 入力モード「半角英数」で待機 |
 | `F13 + i` / `Ctrl + Alt + i` | 日本語入力 **OFF** | IME OFF（直接入力） |
 
-`F13 + j` で「IME ON だが半角英数」という状態になるのは、日本語キーボードで日本語と英語を混在入力する際に都合が良いためです。必要に応じて `F10` で全角英数 / `F9` で全角ひらがなに切り替えてください。
+`F13 + j` で「IME ON だが半角英数」という状態になるのは、日本語キーボードで日本語と英語を混在入力する際に都合が良いためです（次の[和英混在入力の設定](#和英混在入力の設定)が前提）。必要に応じて `F10` で全角英数 / `F9` で全角ひらがなに切り替えてください。
+
+#### 和英混在入力の設定
+
+`F13 + j` の「IME ON ＋ 半角英数」で日本語と英語を混在入力するには、Microsoft IME で次の 2 つを設定します。設定すると、半角英数のまま打った英字を、ローマ字として読んでかな漢字変換できるようになります。設定が無いと、`F13 + j` のあとの英字は半角英数のまま入力されます（かな漢字変換されません）。
+
+`install.ps1` に `-ImeMixedInput` を付けると、2 つをまとめて設定します（サインアウトして入り直すと反映されます）。付けずに実行した場合は、未設定なら `[TODO]` で知らせます。手で設定する場合は、次の順に行います。
+
+1. **以前のバージョンの Microsoft IME を使う**: タスクバーの IME アイコン（「あ」や「A」）を右クリック →「設定」→「全般」→ いちばん下の「互換性」で、「以前のバージョンの Microsoft IME を使う」をオンにする。設定アプリからは、時刻と言語 → 言語と地域 → 日本語の「…」→ 言語のオプション → Microsoft IME の「…」→ キーボード オプション →「全般」です。
+2. **英字をローマ字かな漢字変換する**: IME アイコンを右クリック →「プロパティ」→「詳細設定」→「和英混在入力」タブで、「英字をローマ字かな漢字変換する（主に英語を入力する）」にチェックを入れる。
+
+**戻し方**: 1 は同じ画面でオフにし、2 は同じタブでチェックを外します。
+
+> どちらも Microsoft が公開している設定ではないので、`install.ps1` は、レジストリの値が想定どおりの形のときだけ書き換えます（2 は値の中の 1 ビットだけを立て、ほかの設定は変えません）。想定と違うときは書き換えずに、手で設定するよう `[TODO]` で知らせます。
 
 ---
 
@@ -473,6 +500,16 @@ New-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Control\Keyboard Layout' 
 ### `F13 + @`（サスペンド）など記号のキーが効かない
 
 v1.0.1 以前の Ecaps は、記号のキーを「Ecaps が起動した時点の配列」で覚えていました。上の英語配列の状態で起動すると、`F13 + @` などが効かなくなります。v1.0.2 以降に更新してください（[インストール](#インストール) と同じ手順）。すぐに直したい場合は、日本語 IME に切り替えてから Ecaps を起動し直します（タスクトレイの H アイコンを右クリック → Reload Script）。
+
+### AI に設定してもらったのに、再起動すると Script file not found になる
+
+ログオン時に `Ecaps.ahk` / `Script file not found.` / `C:\Users\<ユーザー名>\AppData\Local\Programs\Ecaps\Ecaps.ahk` と表示される場合です。Claude デスクトップアプリなど、**MSIX パッケージのアプリ**の中で動く AI エージェントに、以前の `install.ps1` を実行してもらうと起きました。
+
+そうしたアプリの中で実行したコマンドが、`%LOCALAPPDATA%` の直下に新しいフォルダー（`Programs` など）を作ったり、レジストリの `HKCU` に書き込んだりすると、Windows はそれをアプリ専用の場所（ファイルは `%LOCALAPPDATA%\Packages\<アプリ>\LocalCache\Local\…`）へ振り替えます。アプリの中からは設置できたように見えますが、ログオン時の自動起動からは見えません（`%LOCALAPPDATA%\Programs` が元から有る PC では、ファイルは振り替えられないので起きません）。
+
+**直し方**: 自分で開いたターミナルで、[(B) コマンドで行う場合](#b-コマンドで行う場合) の 2 行を実行します。
+
+今の `install.ps1` は、アプリのパッケージの中で実行されると、何も変更せずに `[ERROR]` で止まります。また、振り替え先に残った古いコピー（`…\LocalCache\Local\Programs\Ecaps`）を見つけると、削除するコマンドを `[TODO]` で示します。古いコピーは使われませんが、そのアプリの中からは古い版が見え続けます。
 
 ### Ecaps が効かない・止まっているか分からない
 

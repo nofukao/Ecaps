@@ -358,5 +358,20 @@ python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じな
   - 対象は「RDP セッションで実行中（`SystemInformation.TerminalServerSession` = SM_REMOTESESSION）」または「リモートデスクトップが有効（`fDenyTSConnections`=0。ポリシー側の値を優先）」の PC。`$env:SESSIONNAME` はログオン時の値のまま変わらないので使わない。
   - 接続元が正しいサブタイプを申告する組み合わせでは英語配列にならないので、誤検知になる。それでも 2 つの設定は日本語 106/109 で使う限り害が無いので、設定してもらえば消える `[TODO]` で良しとした。
   - 「Action needed」で「Restart Windows」より前に並ぶよう、最初に実行する。
+- **MSIX パッケージのアプリの中では止める**: Claude デスクトップアプリ（MSIX）の Code タブのエージェントが v1.0.3 の install.ps1 を実行したところ、出力はすべて `[OK]` / `[CHANGED]` だったのに、再起動後のログオンで `Script file not found` になった（2026-10-11、別 PC から報告）。
+  - パッケージのアプリが起動した子孫プロセス（エージェントのシェル → powershell）は、パッケージ ID を引き継ぎ、ファイルとレジストリへの書き込みが仮想化される。この PC（Windows 11 24H2、Claude 2.26454.2.0）で確かめた結果:
+    - `%LOCALAPPDATA%` の直下に新しく作ったフォルダーは、`%LOCALAPPDATA%\Packages\<PFN>\LocalCache\Local\` に振り替えられる。既存のフォルダーの中に作ったもの（`Programs` が有るときの `Programs\Ecaps`）は振り替えられない。報告元の PC は `%LOCALAPPDATA%\Programs` が無かったので、設置先ごと振り替えられた。スタートアップのフォルダーは既存なので Ecaps.lnk は本来の場所に作られ、ログオン時に見えない ahk を起動しようとした。
+    - HKCU は、新しいキーも、既存のキーへの値の書き込みも振り替えられる（アプリのマニフェストの `virtualization:RegistryWriteVirtualization` で除外したキーを除く）。`-PowerShellEmacs` の実行ポリシーや `-ImeMixedInput` の設定も効かなくなる。
+    - パッケージの中からは、振り替えたものが本来の場所に有るように見える（`Test-Path` も Ecaps の起動も成功する）。install.ps1 の結果では気づけない。
+  - 判定は `kernel32!GetCurrentPackageFullName`（パッケージの外なら 15700 = `APPMODEL_ERROR_NO_PACKAGE`）。孫プロセス（cmd → powershell）でもパッケージ名が返り、パッケージの外へ出た子（下記 `-PreventBreakaway` 無し）では 15700 で振り替えも無いことを確認した。パッケージの中なら、何も変更する前に `[ERROR]` で止め、ユーザーのターミナルで 2 行を実行するよう案内する。UAC で昇格した HKLM の書き込みは正しく反映されていたが、半端な状態を作らないよう全部止める。中で動いている版を `Installed version:` として見せないよう、その行も出さない。
+  - 以前の版が振り替え先に残したコピー（`Packages\*\LocalCache\Local\Programs\Ecaps`）は、見つけたら削除のコマンドを `[TODO]` で示す。Windows は使わないが、そのアプリの中からは古い版が見え続け、後のエージェントを惑わせるため。
+  - 採用しなかった案: install.ps1 がパッケージの外でプロセスを起動し直す（`PROC_THREAD_ATTRIBUTE_DESKTOP_APP_POLICY` のブレイクアウェイ、explorer やタスクスケジューラ経由など）。アプリが意図して閉じ込めている環境を迂回することになり、出力もエージェントに返らない。2 行をユーザーに実行してもらうほうが確実で分かりやすい。
+  - 試し方: `Invoke-CommandInDesktopPackage -PackageFamilyName <PFN> -AppId <AppId> -PreventBreakaway -Command powershell.exe -Args "-File <.ps1>"` で、そのアプリのパッケージの中で動かせる。`-PreventBreakaway` を付けないと、起動したプロセスの子がパッケージの外で動き、実際のアプリの中と挙動が違う。出力はファイルにリダイレクトして読む（`%TEMP%` の中は既存フォルダーなので振り替えられない）。安全のため、`-NoAdmin -Version <存在しないタグ>` を付けて、判定が外れても何も変わらないようにして流す。
+- **IME の設定（`-ImeMixedInput`）**: `F13 + j` の「IME ON ＋ 半角英数」で日本語と英語を混在入力するには、以前のバージョンの Microsoft IME と、その「英字をローマ字かな漢字変換する（主に英語を入力する）」が要る（README「和英混在入力の設定」）。
+  - 保存場所: 前者は `HKCU\Software\Microsoft\Input\TSF\Tsf3Override\{03b5835f-f03c-411b-9ce2-aa23e1171e36}` の `NoTsf3Override2`=1。後者は `HKCU\Software\Microsoft\IME\15.0\IMEJP\MSIME` の `option1` の 0x400 のビット（報告元が詳細設定でその項目だけを切り替え、`reg query /s` の差分で特定した。変わったのは `option1` と `SerialNo` だけ）。どちらも Microsoft が公開している設定ではない。
+  - 既定では書かない（ユーザーの好みにかかわる）。付けずに実行して未設定なら `[TODO]`。`F13 + j` の説明がこの設定を前提にしているので、Scancode Map と同じく、設定すれば消える `[TODO]` にした（2026-10-11、ユーザーの判断。設定しない PC では毎回 `Action needed` に出る）。
+  - 想定と違う形（値が無い、DWORD でない）なら書かずに `[TODO]` で手作業を案内する。`option1` は読んだ値に 0x400 を OR して書き戻し、ほかのビットは変えない。値が無いのは IME が設定をまだ保存していないときなので、ほかのビットを推測して作らない。`Tsf3Override\{…}` のキーは、無ければ作る（設定画面で切り替えたときに作られるキーなので）。
+  - `SerialNo` は書かない。設定画面で適用するたびに変わり、動いている IME が変更に気づくための値と思われるが、意味が分からないため。代わりに、サインアウト後に反映されるとして `[TODO]` で知らせる。動いている IME にすぐ反映されるかは未確認。
 - **テスト**: リリースが無くても `-Source <フォルダ>` で手元のファイルから設置して確かめられる。何度実行しても同じ状態になること（2 回目はすべて `[OK]`）も確認する。
+  - 本体を実行すると設置まで進むので、関数ごとに確かめたいときは、AST（`[System.Management.Automation.Language.Parser]::ParseFile`）から関数定義だけを取り出して読み込み、`$ImeKey` などのパスを使い捨てのレジストリキーに差し替えて呼ぶ。
 
