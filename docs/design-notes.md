@@ -320,7 +320,7 @@ python tests/golden_test.py -k alt     # 名前に alt を含むケースだけ
 - 常駐中の Ecaps など他の AutoHotkey が動いていても実行できる。テスト対象のフックが最後に登録されて最初に呼ばれ、レコーダはその直後なので記録は影響を受けない。Ecaps は `SendMode("Event")` 固定なので、他スクリプトの存在で送出方式が変わることもない。テスト対象は非 UIA の `AutoHotkey64.exe` で起動する（UIA 版は CreateProcess で起動できない）。
 - 入力は SendInput による注入なので、AHK からは「物理的には押されていない」キーに見える。そのため **Alt 等の修飾キーが絡む挙動は実機と異なる**（Send 後に Alt が押し直されないので、Alt を押したままの連打や、Alt を離したときのメニュー反応・`MaskAlt()` のマスクは再現できない）。golden の Alt 系ケースに差分が出たら「無害」と決めつけず、実機（メモ帳の Alt+f → Alt を離す等）で確認する。
 - IME 切替（`F13+j/i`）、サスペンド、マウス、RDP 前面時の無効化はテスト対象外。
-- テスト対象の AutoHotkey は環境変数 `ECAPS_AHK_EXE` で切り替えられる（既定は `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`）。新しい AutoHotkey への適合は、インストール済みの版を変えずに、公式のポータブル版 zip（GitHub Releases の `AutoHotkey_<版>.zip`）を展開してその `AutoHotkey64.exe` を指定して確かめる。2.0.29 で全テスト合格を確認済み（2026-10-08）。
+- テスト対象の AutoHotkey は環境変数 `ECAPS_AHK_EXE` で切り替えられる（既定は `C:\Program Files\AutoHotkey\v2\AutoHotkey64.exe`）。新しい AutoHotkey への適合は、インストール済みの版を変えずに、公式のポータブル版 zip（GitHub Releases の `AutoHotkey_<版>.zip`）を展開してその `AutoHotkey64.exe` を指定して確かめる。2.0.29（2026-10-08）、2.0.30（2026-10-11）で全テスト合格を確認済み。
 
 ### VSCode 内蔵ターミナルの e2e テスト
 
@@ -363,7 +363,7 @@ python tests/vscode_terminal_test.py --keep   # 終了後も VSCode を閉じな
     - `%LOCALAPPDATA%` の直下に新しく作ったフォルダーは、`%LOCALAPPDATA%\Packages\<PFN>\LocalCache\Local\` に振り替えられる。既存のフォルダーの中に作ったもの（`Programs` が有るときの `Programs\Ecaps`）は振り替えられない。報告元の PC は `%LOCALAPPDATA%\Programs` が無かったので、設置先ごと振り替えられた。スタートアップのフォルダーは既存なので Ecaps.lnk は本来の場所に作られ、ログオン時に見えない ahk を起動しようとした。
     - HKCU は、新しいキーも、既存のキーへの値の書き込みも振り替えられる（アプリのマニフェストの `virtualization:RegistryWriteVirtualization` で除外したキーを除く）。`-PowerShellEmacs` の実行ポリシーや `-ImeMixedInput` の設定も効かなくなる。
     - パッケージの中からは、振り替えたものが本来の場所に有るように見える（`Test-Path` も Ecaps の起動も成功する）。install.ps1 の結果では気づけない。
-  - 判定は `kernel32!GetCurrentPackageFullName`（パッケージの外なら 15700 = `APPMODEL_ERROR_NO_PACKAGE`）。孫プロセス（cmd → powershell）でもパッケージ名が返り、パッケージの外へ出た子（下記 `-PreventBreakaway` 無し）では 15700 で振り替えも無いことを確認した。パッケージの中なら、何も変更する前に `[ERROR]` で止め、ユーザーのターミナルで 2 行を実行するよう案内する。UAC で昇格した HKLM の書き込みは正しく反映されていたが、半端な状態を作らないよう全部止める。中で動いている版を `Installed version:` として見せないよう、その行も出さない。
+  - 判定は `kernel32!GetCurrentPackageFullName`（パッケージの外なら 15700 = `APPMODEL_ERROR_NO_PACKAGE`）。孫プロセス（cmd → powershell）でもパッケージ名が返り、パッケージの外へ出た子（下記 `-PreventBreakaway` 無し）では 15700 で振り替えも無いことを確認した。Windows ターミナル（これも MSIX、1.24）の中のシェルはパッケージの外で動く（15700）ので、README (B) の手順は止まらない。パッケージの中なら、何も変更する前に `[ERROR]` で止め、ユーザーのターミナルで 2 行を実行するよう案内する。UAC で昇格した HKLM の書き込みは正しく反映されていたが、半端な状態を作らないよう全部止める。中で動いている版を `Installed version:` として見せないよう、その行も出さない。
   - 以前の版が振り替え先に残したコピー（`Packages\*\LocalCache\Local\Programs\Ecaps`）は、見つけたら削除のコマンドを `[TODO]` で示す。Windows は使わないが、そのアプリの中からは古い版が見え続け、後のエージェントを惑わせるため。
   - 採用しなかった案: install.ps1 がパッケージの外でプロセスを起動し直す（`PROC_THREAD_ATTRIBUTE_DESKTOP_APP_POLICY` のブレイクアウェイ、explorer やタスクスケジューラ経由など）。アプリが意図して閉じ込めている環境を迂回することになり、出力もエージェントに返らない。2 行をユーザーに実行してもらうほうが確実で分かりやすい。
   - 試し方: `Invoke-CommandInDesktopPackage -PackageFamilyName <PFN> -AppId <AppId> -PreventBreakaway -Command powershell.exe -Args "-File <.ps1>"` で、そのアプリのパッケージの中で動かせる。`-PreventBreakaway` を付けないと、起動したプロセスの子がパッケージの外で動き、実際のアプリの中と挙動が違う。出力はファイルにリダイレクトして読む（`%TEMP%` の中は既存フォルダーなので振り替えられない）。安全のため、`-NoAdmin -Version <存在しないタグ>` を付けて、判定が外れても何も変わらないようにして流す。

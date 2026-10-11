@@ -1,7 +1,7 @@
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
 ; Ecaps.ahk  ―  Emacs風キーバインド on Windows  (AutoHotkey v2)
 ;
-;   バージョン : v1.0.3  (リリース日 2026-10-09)
+;   バージョン : v1.0.4  (リリース日 2026-10-11)
 ;   リポジトリ : https://github.com/nofukao/Ecaps
 ;   (リリースのたびに、この 2 行と冒頭全体を見直す: CLAUDE.md のリリース手順)
 ;
@@ -16,7 +16,8 @@
 ;     - 標準の設置先 : %LOCALAPPDATA%\Programs\Ecaps (install.ps1 で自動設置)
 ;     - 自動起動     : スタートアップの Ecaps.lnk (AutoHotkey64_UIA.exe で起動)
 ;     - CapsLock     : レジストリ Scancode Map で F13 (scancode 0x0064) に割当て
-;   (任意) PowerShell を Emacs 編集モードにする手順も README.md にある。
+;   (任意) PowerShell を Emacs 編集モードにする手順と、F13+j で日本語と英語を
+;   混在入力するための IME の設定 (和英混在入力) も README.md にある。
 ;   設計判断・AHK v2 の落とし穴: docs/design-notes.md
 ;
 ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
